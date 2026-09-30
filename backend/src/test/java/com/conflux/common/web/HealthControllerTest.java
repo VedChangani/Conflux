@@ -1,5 +1,6 @@
 package com.conflux.common.web;
 
+import com.conflux.auth.AuthConfig;
 import com.conflux.config.CorsConfig;
 import com.conflux.config.SecurityConfig;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(HealthController.class)
-@Import({ SecurityConfig.class, CorsConfig.class })
+@Import({ SecurityConfig.class, CorsConfig.class, AuthConfig.class })
 @ActiveProfiles("test")
 class HealthControllerTest {
 
