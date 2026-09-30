@@ -8,8 +8,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Listing endpoints. Public: {@code GET /listings} and {@code GET /listings/{slug}}
  * (published only). Everything else requires a bearer token; the acting user is always
- * the token's subject, never a value from the request.
+ * the token's subject (resolved by the service through {@code CurrentUser}), never a value
+ * from the request.
  */
 @RestController
 @RequestMapping(ListingController.BASE_PATH)
@@ -67,42 +66,35 @@ public class ListingController {
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public ListingDetailResponse create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ListingRequest request) {
-		return this.listingService.create(userId(jwt), request);
+	public ListingDetailResponse create(@Valid @RequestBody ListingRequest request) {
+		return this.listingService.create(request);
 	}
 
 	@GetMapping("/mine")
-	public PageResponse<MyListingSummaryResponse> myListings(@AuthenticationPrincipal Jwt jwt,
-			@RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
+	public PageResponse<MyListingSummaryResponse> myListings(@RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
 			@RequestParam(defaultValue = DEFAULT_PAGE_SIZE) @Min(1) @Max(50) int size) {
-		return this.listingService.myListings(userId(jwt), page, size);
+		return this.listingService.myListings(page, size);
 	}
 
 	@GetMapping("/mine/{id}")
-	public ListingDetailResponse myListing(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-		return this.listingService.myListing(userId(jwt), id);
+	public ListingDetailResponse myListing(@PathVariable Long id) {
+		return this.listingService.myListing(id);
 	}
 
 	@PutMapping("/{id}")
-	public ListingDetailResponse update(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
-			@Valid @RequestBody ListingRequest request) {
-		return this.listingService.update(userId(jwt), id, request);
+	public ListingDetailResponse update(@PathVariable Long id, @Valid @RequestBody ListingRequest request) {
+		return this.listingService.update(id, request);
 	}
 
 	@PostMapping("/{id}/publish")
-	public ListingDetailResponse publish(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-		return this.listingService.publish(userId(jwt), id);
+	public ListingDetailResponse publish(@PathVariable Long id) {
+		return this.listingService.publish(id);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void archive(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-		this.listingService.archive(userId(jwt), id);
-	}
-
-	// Access tokens are issued with the user id as subject (see JwtTokenService).
-	private static Long userId(Jwt jwt) {
-		return Long.valueOf(jwt.getSubject());
+	public void archive(@PathVariable Long id) {
+		this.listingService.archive(id);
 	}
 
 }

@@ -29,13 +29,17 @@ public class AuthService {
 
 	private final JwtTokenService tokenService;
 
+	private final CurrentUser currentUser;
+
 	// Compared against when no user matches, so unknown identifiers cost the same as wrong passwords.
 	private final String dummyPasswordHash;
 
-	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenService tokenService) {
+	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenService tokenService,
+			CurrentUser currentUser) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.tokenService = tokenService;
+		this.currentUser = currentUser;
 		this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
 	}
 
@@ -94,12 +98,12 @@ public class AuthService {
 	}
 
 	/**
-	 * Returns the account identified by the {@code sub} claim of a verified token.
-	 * @throws InvalidBearerTokenException if the subject no longer matches an account
+	 * Returns the authenticated user's account ({@link CurrentUser}).
+	 * @throws InvalidBearerTokenException if the token's subject no longer matches an account
 	 */
 	@Transactional(readOnly = true)
-	public AccountResponse currentAccount(String subject) {
-		return parseUserId(subject).flatMap(this.userRepository::findById)
+	public AccountResponse currentAccount() {
+		return this.userRepository.findById(this.currentUser.id())
 			.map(AccountResponse::from)
 			.orElseThrow(() -> new InvalidBearerTokenException("Token subject does not match an account"));
 	}
@@ -113,15 +117,6 @@ public class AuthService {
 			return this.userRepository.findByUsername(User.normalizeUsername(identifier));
 		}
 		return Optional.empty();
-	}
-
-	private static Optional<Long> parseUserId(String subject) {
-		try {
-			return Optional.of(Long.valueOf(subject));
-		}
-		catch (NumberFormatException ex) {
-			return Optional.empty();
-		}
 	}
 
 }

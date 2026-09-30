@@ -21,8 +21,10 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
 	boolean existsBySlug(String slug);
 
 	/**
-	 * A listing only if it is in the given status (e.g. PUBLISHED for public actions).
+	 * A listing only if it is in the given status (e.g. PUBLISHED for public actions), with
+	 * its owner.
 	 */
+	@EntityGraph(attributePaths = "owner")
 	Optional<Listing> findByIdAndStatus(Long id, ListingStatus status);
 
 	@EntityGraph(attributePaths = "owner")

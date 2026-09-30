@@ -2,6 +2,7 @@ package com.conflux.listing;
 
 import java.util.Locale;
 
+import com.conflux.auth.CurrentUser;
 import com.conflux.common.web.PageResponse;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
@@ -18,9 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Listing use cases. Every owner operation takes the authenticated user's id (from the
- * JWT) and only ever loads listings through owner-scoped queries, so another user's
- * listing behaves exactly like a missing one (404). Responses are mapped inside the
+ * Listing use cases. Owner operations act for the authenticated user ({@link CurrentUser},
+ * from the verified JWT) and only ever load listings through owner-scoped queries, so
+ * another user's listing behaves exactly like a missing one (404). Responses are mapped inside the
  * transaction.
  */
 @Service
@@ -36,11 +37,14 @@ public class ListingService {
 
 	private final SlugGenerator slugGenerator;
 
+	private final CurrentUser currentUser;
+
 	public ListingService(ListingRepository listingRepository, UserRepository userRepository,
-			SlugGenerator slugGenerator) {
+			SlugGenerator slugGenerator, CurrentUser currentUser) {
 		this.listingRepository = listingRepository;
 		this.userRepository = userRepository;
 		this.slugGenerator = slugGenerator;
+		this.currentUser = currentUser;
 	}
 
 	// ---- Public ---------------------------------------------------------------------
@@ -88,12 +92,12 @@ public class ListingService {
 	// ---- Owner ----------------------------------------------------------------------
 
 	/**
-	 * Creates a DRAFT listing owned by {@code userId} with a server-generated slug.
+	 * Creates a DRAFT listing owned by the current user with a server-generated slug.
 	 * @throws ResponseStatusException 409 if no unique slug could be stored
 	 */
 	@Transactional
-	public ListingDetailResponse create(Long userId, ListingRequest request) {
-		User owner = this.userRepository.findById(userId)
+	public ListingDetailResponse create(ListingRequest request) {
+		User owner = this.userRepository.findById(this.currentUser.id())
 			.orElseThrow(() -> new InvalidBearerTokenException("Token subject does not match an account"));
 		requireActive(owner);
 		String title = request.title().strip();
@@ -113,14 +117,14 @@ public class ListingService {
 	}
 
 	@Transactional(readOnly = true)
-	public PageResponse<MyListingSummaryResponse> myListings(Long userId, int page, int size) {
+	public PageResponse<MyListingSummaryResponse> myListings(int page, int size) {
 		Pageable pageable = PageRequest.of(page, size, MINE_ORDER);
-		return PageResponse.from(this.listingRepository.findByOwnerId(userId, pageable).map(MyListingSummaryResponse::from));
+		return PageResponse.from(this.listingRepository.findByOwnerId(this.currentUser.id(), pageable).map(MyListingSummaryResponse::from));
 	}
 
 	@Transactional(readOnly = true)
-	public ListingDetailResponse myListing(Long userId, Long listingId) {
-		return ListingDetailResponse.from(ownedListing(userId, listingId));
+	public ListingDetailResponse myListing(Long listingId) {
+		return ListingDetailResponse.from(ownedListing(listingId));
 	}
 
 	/**
@@ -129,8 +133,8 @@ public class ListingService {
 	 * @throws ResponseStatusException 404 if not owned, 409 if ARCHIVED or SUSPENDED
 	 */
 	@Transactional
-	public ListingDetailResponse update(Long userId, Long listingId, ListingRequest request) {
-		Listing listing = ownedListing(userId, listingId);
+	public ListingDetailResponse update(Long listingId, ListingRequest request) {
+		Listing listing = ownedListing(listingId);
 		requireActive(listing.getOwner());
 		transition(listing::requireEditable);
 		listing.setTitle(request.title().strip());
@@ -151,8 +155,8 @@ public class ListingService {
 	 * @throws ResponseStatusException 404 if not owned, 409 unless DRAFT
 	 */
 	@Transactional
-	public ListingDetailResponse publish(Long userId, Long listingId) {
-		Listing listing = ownedListing(userId, listingId);
+	public ListingDetailResponse publish(Long listingId) {
+		Listing listing = ownedListing(listingId);
 		requireActive(listing.getOwner());
 		transition(listing::publish);
 		this.listingRepository.saveAndFlush(listing);
@@ -164,16 +168,18 @@ public class ListingService {
 	 * @throws ResponseStatusException 404 if not owned, 409 if SUSPENDED
 	 */
 	@Transactional
-	public void archive(Long userId, Long listingId) {
-		Listing listing = ownedListing(userId, listingId);
+	public void archive(Long listingId) {
+		Listing listing = ownedListing(listingId);
 		requireActive(listing.getOwner());
 		transition(listing::archive);
 	}
 
 	// ---- Helpers --------------------------------------------------------------------
 
-	private Listing ownedListing(Long userId, Long listingId) {
-		return this.listingRepository.findByIdAndOwnerId(listingId, userId).orElseThrow(ListingService::notFound);
+	// Owner-scoped lookup for the current user: another user's listing is indistinguishable from a missing one.
+	private Listing ownedListing(Long listingId) {
+		return this.listingRepository.findByIdAndOwnerId(listingId, this.currentUser.id())
+			.orElseThrow(ListingService::notFound);
 	}
 
 	// Optional fields: blank input is stored as null. Price and currency are set together.

@@ -4,8 +4,6 @@ import com.conflux.common.web.ApiPaths;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,8 +39,8 @@ public class AuthController {
 	}
 
 	@GetMapping("/me")
-	public AccountResponse me(@AuthenticationPrincipal Jwt jwt) {
-		return this.authService.currentAccount(jwt.getSubject());
+	public AccountResponse me() {
+		return this.authService.currentAccount();
 	}
 
 }
