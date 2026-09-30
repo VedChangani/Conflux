@@ -31,10 +31,11 @@ import jakarta.persistence.Table;
  * content is stored exactly as given: nothing is trimmed or rewritten, and slugs are not
  * generated here.
  * <p>
- * New listings start as {@link ListingStatus#DRAFT} with no {@code publishedAt}. Owner
- * lifecycle operations are explicit methods ({@link #beginOwnerEdit()},
- * {@link #submitForReview()}, {@link #archive()}); moderation (approve, reject, suspend)
- * belongs to a later batch.
+ * New listings start as {@link ListingStatus#DRAFT} with no {@code publishedAt}. The status
+ * only changes through explicit lifecycle methods that reject invalid transitions: the
+ * owner's {@link #publish()} and {@link #archive()} (with {@link #requireEditable()} guarding
+ * edits), and the package-private {@link #suspend()} reserved for future trust-and-safety
+ * code. There is no status setter.
  */
 @Entity
 @Table(name = "listings")
@@ -202,31 +203,28 @@ public class Listing {
 	}
 
 	/**
-	 * Must be called before the owner changes any content. DRAFT and REJECTED listings
-	 * keep their status; a PUBLISHED listing goes back to PENDING_REVIEW and loses its
-	 * {@code publishedAt}, so edited public content cannot bypass moderation.
-	 * @throws ListingStateException if the listing is PENDING_REVIEW, ARCHIVED or SUSPENDED
+	 * Owner publish: DRAFT to PUBLISHED, immediately public. {@code publishedAt} becomes now.
+	 * @throws ListingStateException for any other status (a PUBLISHED listing keeps its
+	 * original {@code publishedAt})
 	 */
-	public void beginOwnerEdit() {
-		switch (this.status) {
-			case DRAFT, REJECTED -> {
-			}
-			case PUBLISHED -> {
-				this.status = ListingStatus.PENDING_REVIEW;
-				this.publishedAt = null;
-			}
-			case PENDING_REVIEW, ARCHIVED, SUSPENDED -> throw notAllowed("edited");
+	public void publish() {
+		if (this.status != ListingStatus.DRAFT) {
+			throw notAllowed("published");
 		}
+		this.status = ListingStatus.PUBLISHED;
+		this.publishedAt = now();
 	}
 
 	/**
-	 * DRAFT or REJECTED to PENDING_REVIEW. Does not publish; {@code publishedAt} stays null.
-	 * @throws ListingStateException for any other status
+	 * Must be called before the owner changes any content. DRAFT and PUBLISHED listings
+	 * are editable and keep their status (and {@code publishedAt}).
+	 * @throws ListingStateException if the listing is ARCHIVED or SUSPENDED
 	 */
-	public void submitForReview() {
+	public void requireEditable() {
 		switch (this.status) {
-			case DRAFT, REJECTED -> this.status = ListingStatus.PENDING_REVIEW;
-			case PENDING_REVIEW, PUBLISHED, ARCHIVED, SUSPENDED -> throw notAllowed("submitted for review");
+			case DRAFT, PUBLISHED -> {
+			}
+			case ARCHIVED, SUSPENDED -> throw notAllowed("edited");
 		}
 	}
 
@@ -237,23 +235,28 @@ public class Listing {
 	 */
 	public void archive() {
 		switch (this.status) {
-			case DRAFT, REJECTED, PENDING_REVIEW, PUBLISHED -> this.status = ListingStatus.ARCHIVED;
+			case DRAFT, PUBLISHED -> this.status = ListingStatus.ARCHIVED;
 			case ARCHIVED -> {
 			}
 			case SUSPENDED -> throw notAllowed("archived");
 		}
 	}
 
-	private ListingStateException notAllowed(String action) {
-		return new ListingStateException("A listing with status " + this.status + " cannot be " + action + ".");
+	/**
+	 * Trust-and-safety suspension: PUBLISHED to SUSPENDED, hidden from the public, with
+	 * {@code publishedAt} kept as history. Package-private on purpose: there is no owner
+	 * or user path to it, and it is reserved for the future administrative feature.
+	 * @throws ListingStateException for any other status
+	 */
+	void suspend() {
+		if (this.status != ListingStatus.PUBLISHED) {
+			throw notAllowed("suspended");
+		}
+		this.status = ListingStatus.SUSPENDED;
 	}
 
-	/**
-	 * Direct status change, for persistence tests only. Application code must use the
-	 * explicit lifecycle methods above.
-	 */
-	void setStatus(ListingStatus status) {
-		this.status = Objects.requireNonNull(status, "status must not be null");
+	private ListingStateException notAllowed(String action) {
+		return new ListingStateException("A listing with status " + this.status + " cannot be " + action + ".");
 	}
 
 	private static String requireSlug(String slug) {

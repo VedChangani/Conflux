@@ -5,6 +5,7 @@ import com.conflux.common.web.PageResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,11 +42,22 @@ public class ListingController {
 		this.listingService = listingService;
 	}
 
+	/**
+	 * Public marketplace discovery. All filters are optional and combined with AND; enum
+	 * values are the upper-case names (e.g. {@code assetType=MVP}), anything else is 400.
+	 */
 	@GetMapping
-	public PageResponse<ListingCardResponse> publishedListings(
+	public PageResponse<ListingCardResponse> discover(
+			@RequestParam(required = false) @Size(max = ListingDiscoveryCriteria.SEARCH_MAX_LENGTH) String search,
+			@RequestParam(required = false) ListingAssetType assetType,
+			@RequestParam(required = false) ListingMarketplaceMode marketplaceMode,
+			@RequestParam(required = false) ListingCategory category,
+			@RequestParam(required = false) ListingStage stage, @RequestParam(required = false) ListingSort sort,
 			@RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
 			@RequestParam(defaultValue = DEFAULT_PAGE_SIZE) @Min(1) @Max(50) int size) {
-		return this.listingService.publishedListings(page, size);
+		ListingDiscoveryCriteria criteria = new ListingDiscoveryCriteria(search, assetType, marketplaceMode, category,
+				stage, sort);
+		return this.listingService.discover(criteria, page, size);
 	}
 
 	@GetMapping("/{slug}")
@@ -77,9 +89,9 @@ public class ListingController {
 		return this.listingService.update(userId(jwt), id, request);
 	}
 
-	@PostMapping("/{id}/submit")
-	public ListingDetailResponse submit(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
-		return this.listingService.submitForReview(userId(jwt), id);
+	@PostMapping("/{id}/publish")
+	public ListingDetailResponse publish(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+		return this.listingService.publish(userId(jwt), id);
 	}
 
 	@DeleteMapping("/{id}")

@@ -1,5 +1,7 @@
 package com.conflux.listing;
 
+import java.util.Locale;
+
 import com.conflux.common.web.PageResponse;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
@@ -26,8 +28,6 @@ public class ListingService {
 
 	static final int MAX_SLUG_ATTEMPTS = 3;
 
-	private static final Sort PUBLIC_ORDER = Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
-
 	private static final Sort MINE_ORDER = Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"));
 
 	private final ListingRepository listingRepository;
@@ -45,11 +45,34 @@ public class ListingService {
 
 	// ---- Public ---------------------------------------------------------------------
 
+	/**
+	 * Public marketplace discovery: PUBLISHED listings only, filtered by the given criteria
+	 * (AND) and ordered by the chosen {@link ListingSort}.
+	 */
 	@Transactional(readOnly = true)
-	public PageResponse<ListingCardResponse> publishedListings(int page, int size) {
-		Pageable pageable = PageRequest.of(page, size, PUBLIC_ORDER);
-		return PageResponse
-			.from(this.listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingCardResponse::from));
+	public PageResponse<ListingCardResponse> discover(ListingDiscoveryCriteria criteria, int page, int size) {
+		ListingSort sort = (criteria.sort() != null) ? criteria.sort() : ListingSort.DEFAULT;
+		Pageable pageable = PageRequest.of(page, size, sort.toSort());
+		return PageResponse.from(this.listingRepository
+			.findPublished(searchPattern(criteria.search()), criteria.assetType(), criteria.marketplaceMode(),
+					criteria.category(), criteria.stage(), pageable)
+			.map(ListingCardResponse::from));
+	}
+
+	/**
+	 * Trimmed, lower-cased "contains" LIKE pattern, or {@code null} for a missing or blank
+	 * search. LIKE wildcards typed by the user are escaped so they match literally.
+	 */
+	static String searchPattern(String search) {
+		if (search == null || search.isBlank()) {
+			return null;
+		}
+		String escaped = search.strip()
+			.toLowerCase(Locale.ROOT)
+			.replace("!", "!!")
+			.replace("%", "!%")
+			.replace("_", "!_");
+		return "%" + escaped + "%";
 	}
 
 	/**
@@ -101,14 +124,15 @@ public class ListingService {
 	}
 
 	/**
-	 * Replaces the editable content. Editing a PUBLISHED listing sends it back to review.
-	 * @throws ResponseStatusException 404 if not owned, 409 if the status forbids editing
+	 * Replaces the editable content. The status and {@code publishedAt} are unchanged, so a
+	 * PUBLISHED listing stays public.
+	 * @throws ResponseStatusException 404 if not owned, 409 if ARCHIVED or SUSPENDED
 	 */
 	@Transactional
 	public ListingDetailResponse update(Long userId, Long listingId, ListingRequest request) {
 		Listing listing = ownedListing(userId, listingId);
 		requireActive(listing.getOwner());
-		transition(listing::beginOwnerEdit);
+		transition(listing::requireEditable);
 		listing.setTitle(request.title().strip());
 		listing.setShortPitch(request.shortPitch().strip());
 		listing.setDescription(request.description());
@@ -123,13 +147,14 @@ public class ListingService {
 	}
 
 	/**
-	 * @throws ResponseStatusException 404 if not owned, 409 unless DRAFT or REJECTED
+	 * DRAFT to PUBLISHED: the listing is public immediately, without any review.
+	 * @throws ResponseStatusException 404 if not owned, 409 unless DRAFT
 	 */
 	@Transactional
-	public ListingDetailResponse submitForReview(Long userId, Long listingId) {
+	public ListingDetailResponse publish(Long userId, Long listingId) {
 		Listing listing = ownedListing(userId, listingId);
 		requireActive(listing.getOwner());
-		transition(listing::submitForReview);
+		transition(listing::publish);
 		this.listingRepository.saveAndFlush(listing);
 		return ListingDetailResponse.from(listing);
 	}

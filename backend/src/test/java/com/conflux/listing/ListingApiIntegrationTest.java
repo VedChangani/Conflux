@@ -47,8 +47,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * HTTP behaviour of the listing API: full context, real security filter chain, Flyway-
- * migrated H2 database. Moderation outcomes (PUBLISHED, REJECTED, SUSPENDED) have no API
- * yet, so tests set them with SQL.
+ * migrated H2 database. Suspension has no API yet (future trust-and-safety work), so tests
+ * set SUSPENDED with SQL; every other status is reached through the real endpoints.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -267,7 +267,7 @@ class ListingApiIntegrationTest {
 	void onlyPublishedListingsAppearInPublicBrowsingAsLightweightCards() throws Exception {
 		long published = createListing(this.aliceToken, "Published one");
 		createListing(this.aliceToken, "Draft one");
-		publish(published, Instant.now());
+		publish(this.aliceToken, published).andExpect(status().isOk());
 
 		this.mockMvc.perform(get(LISTINGS))
 			.andExpect(status().isOk())
@@ -299,7 +299,7 @@ class ListingApiIntegrationTest {
 	@Test
 	void publicDetailReturnsPublishedListingWithSafeOwnerSummary() throws Exception {
 		long id = createListing(this.aliceToken, "Detail listing");
-		publish(id, Instant.parse("2026-01-15T10:00:00Z"));
+		publishAt(id, Instant.parse("2026-01-15T10:00:00Z"));
 		String slug = slugOfListing(id);
 
 		this.mockMvc.perform(get(LISTINGS + "/" + slug))
@@ -330,10 +330,9 @@ class ListingApiIntegrationTest {
 			.getResponse()
 			.getContentAsString();
 
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.PENDING_REVIEW,
-				ListingStatus.REJECTED, ListingStatus.ARCHIVED, ListingStatus.SUSPENDED }) {
-			long id = createListing(this.aliceToken, "Hidden " + status);
-			setStatus(id, status);
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.ARCHIVED,
+				ListingStatus.SUSPENDED }) {
+			long id = listingIn(status, "Hidden " + status);
 			String slug = slugOfListing(id);
 
 			String response = this.mockMvc.perform(get(LISTINGS + "/" + slug))
@@ -355,7 +354,7 @@ class ListingApiIntegrationTest {
 		int[] dayOffsets = { 2, 0, 4, 1, 3 };
 		for (int i = 0; i < dayOffsets.length; i++) {
 			long id = createListing(this.aliceToken, "Listing day " + dayOffsets[i]);
-			publish(id, base.plus(dayOffsets[i], ChronoUnit.DAYS));
+			publishAt(id, base.plus(dayOffsets[i], ChronoUnit.DAYS));
 		}
 
 		this.mockMvc.perform(get(LISTINGS).param("page", "0").param("size", "2"))
@@ -407,7 +406,7 @@ class ListingApiIntegrationTest {
 	}
 
 	@Test
-	void anotherUserCannotReadEditSubmitOrArchiveAListingAndCannotTellItExists() throws Exception {
+	void anotherUserCannotReadEditPublishOrArchiveAListingAndCannotTellItExists() throws Exception {
 		long id = createListing(this.aliceToken, "Alice only");
 		String missing = this.mockMvc.perform(
 				get(MINE + "/999999999").header(HttpHeaders.AUTHORIZATION, bearer(this.bobToken)))
@@ -429,26 +428,33 @@ class ListingApiIntegrationTest {
 		this.mockMvc.perform(withJson(put(LISTINGS + "/" + id), this.bobToken, hijack))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.detail").value(NOT_FOUND));
-		this.mockMvc.perform(post(LISTINGS + "/" + id + "/submit").header(HttpHeaders.AUTHORIZATION, bearer(this.bobToken)))
-			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.detail").value(NOT_FOUND));
+		String publishAttempt = publish(this.bobToken, id).andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value(NOT_FOUND))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		String publishMissing = publish(this.bobToken, 999_999_999L).andExpect(status().isNotFound())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		assertThat(publishAttempt).isEqualTo(publishMissing.replace("999999999", Long.toString(id)));
 		this.mockMvc.perform(delete(LISTINGS + "/" + id).header(HttpHeaders.AUTHORIZATION, bearer(this.bobToken)))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.detail").value(NOT_FOUND));
 
 		assertThat(this.jdbc.queryForObject("SELECT title FROM listings WHERE id = ?", String.class, id))
 			.isEqualTo("Alice only");
-		assertThat(this.jdbc.queryForObject("SELECT status FROM listings WHERE id = ?", String.class, id))
-			.isEqualTo("DRAFT");
+		assertThat(statusOf(id)).isEqualTo("DRAFT");
+		assertThat(publishedAtOf(id)).isNull();
+		this.mockMvc.perform(get(LISTINGS)).andExpect(jsonPath("$.totalElements").value(0));
 	}
 
 	@Test
 	void mineReturnsOnlyTheCallersListingsInAllStatusesOrderedByUpdatedAt() throws Exception {
 		long older = createListing(this.aliceToken, "Alice older");
-		long archived = createListing(this.aliceToken, "Alice archived");
+		long archived = listingIn(ListingStatus.ARCHIVED, "Alice archived");
 		long newer = createListing(this.aliceToken, "Alice newer");
 		createListing(this.bobToken, "Bob listing");
-		setStatus(archived, ListingStatus.ARCHIVED);
 		setUpdatedAt(older, Instant.parse("2026-01-01T00:00:00Z"));
 		setUpdatedAt(archived, Instant.parse("2026-01-02T00:00:00Z"));
 		setUpdatedAt(newer, Instant.parse("2026-01-03T00:00:00Z"));
@@ -475,44 +481,88 @@ class ListingApiIntegrationTest {
 			.andExpect(jsonPath("$.content[0].title").value("Bob listing"));
 	}
 
-	// ---- Lifecycle ---------------------------------------------------------------------
+	// ---- Publishing --------------------------------------------------------------------
 
 	@Test
-	void draftAndRejectedListingsCanBeSubmittedForReview() throws Exception {
-		long draft = createListing(this.aliceToken, "Draft");
-		long rejected = createListing(this.aliceToken, "Rejected");
-		setStatus(rejected, ListingStatus.REJECTED);
+	void ownerPublishesDraftAndItIsPublicImmediately() throws Exception {
+		long id = createListing(this.aliceToken, "Self published");
+		String slug = slugOfListing(id);
+		this.mockMvc.perform(get(LISTINGS + "/" + slug)).andExpect(status().isNotFound());
+		Instant before = Instant.now().truncatedTo(ChronoUnit.MICROS);
 
-		for (long id : new long[] { draft, rejected }) {
-			submit(this.aliceToken, id).andExpect(status().isOk())
-				.andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
-				.andExpect(jsonPath("$.publishedAt").value(nullValue()));
-			assertThat(statusOf(id)).isEqualTo("PENDING_REVIEW");
-		}
-		// Submitting does not publish.
-		this.mockMvc.perform(get(LISTINGS)).andExpect(jsonPath("$.totalElements").value(0));
+		String response = publish(this.aliceToken, id).andExpect(status().isOk())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+			.andExpect(jsonPath("$.id").value(id))
+			.andExpect(jsonPath("$.status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.publishedAt").value(notNullValue()))
+			.andExpect(jsonPath("$.description").value("Match invoices to payments automatically."))
+			.andExpect(jsonPath("$.owner.username").value("alice"))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		Instant publishedAt = Instant.parse(JsonPath.read(response, "$.publishedAt"));
+		assertThat(publishedAt).isBetween(before, Instant.now());
+		assertThat(statusOf(id)).isEqualTo("PUBLISHED");
+		assertThat(this.jdbc.queryForObject("SELECT published_at FROM listings WHERE id = ?", LocalDateTime.class, id))
+			.isEqualTo(LocalDateTime.ofInstant(publishedAt, ZoneOffset.UTC));
+
+		this.mockMvc.perform(get(LISTINGS))
+			.andExpect(jsonPath("$.totalElements").value(1))
+			.andExpect(jsonPath("$.content[0].id").value(id))
+			.andExpect(jsonPath("$.content[0].publishedAt").value(publishedAt.toString()));
+		this.mockMvc.perform(get(LISTINGS + "/" + slug))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.publishedAt").value(publishedAt.toString()));
 	}
 
 	@Test
-	void invalidSubmitTransitionsAreConflicts() throws Exception {
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.PENDING_REVIEW, ListingStatus.PUBLISHED,
-				ListingStatus.ARCHIVED, ListingStatus.SUSPENDED }) {
-			long id = createListing(this.aliceToken, "Submit " + status);
-			setStatus(id, status);
+	void publishingIsOnlyAllowedFromDraft() throws Exception {
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.PUBLISHED, ListingStatus.ARCHIVED,
+				ListingStatus.SUSPENDED }) {
+			long id = listingIn(status, "Publish " + status);
+			LocalDateTime publishedAt = publishedAtOf(id);
 
-			submit(this.aliceToken, id).andExpect(status().isConflict())
+			publish(this.aliceToken, id).andExpect(status().isConflict())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-				.andExpect(jsonPath("$.detail")
-					.value("A listing with status " + status + " cannot be submitted for review."));
-			assertThat(statusOf(id)).isEqualTo(status.name());
+				.andExpect(jsonPath("$.detail").value("A listing with status " + status + " cannot be published."));
+			assertThat(statusOf(id)).as(status.name()).isEqualTo(status.name());
+			assertThat(publishedAtOf(id)).as(status.name()).isEqualTo(publishedAt);
 		}
+		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM listings WHERE status = 'PUBLISHED'", Long.class))
+			.isEqualTo(1);
 	}
 
 	@Test
-	void editingDraftOrRejectedKeepsTheStatusAndReplacesContent() throws Exception {
+	void reviewAndSuspensionOperationsDoNotExistForOwners() throws Exception {
+		long draft = createListing(this.aliceToken, "No review");
+		long published = listingIn(ListingStatus.PUBLISHED, "No self suspension");
+
+		for (String action : new String[] { "submit", "approve", "reject", "suspend", "restore" }) {
+			this.mockMvc
+				.perform(post(LISTINGS + "/" + draft + "/" + action).header(HttpHeaders.AUTHORIZATION,
+						bearer(this.aliceToken)))
+				.andExpect(status().isNotFound());
+			this.mockMvc
+				.perform(post(LISTINGS + "/" + published + "/" + action).header(HttpHeaders.AUTHORIZATION,
+						bearer(this.aliceToken)))
+				.andExpect(status().isNotFound());
+		}
+		Map<String, Object> edit = body();
+		edit.put("status", "SUSPENDED");
+		update(this.aliceToken, published, edit).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+		assertThat(statusOf(draft)).isEqualTo("DRAFT");
+		assertThat(statusOf(published)).isEqualTo("PUBLISHED");
+	}
+
+	// ---- Editing -----------------------------------------------------------------------
+
+	@Test
+	void editingDraftKeepsItDraftAndReplacesContent() throws Exception {
 		long draft = createListing(this.aliceToken, "Draft");
-		long rejected = createListing(this.aliceToken, "Rejected");
-		setStatus(rejected, ListingStatus.REJECTED);
 		String draftSlug = slugOfListing(draft);
 
 		Map<String, Object> edit = body();
@@ -523,42 +573,45 @@ class ListingApiIntegrationTest {
 
 		update(this.aliceToken, draft, edit).andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("DRAFT"))
+			.andExpect(jsonPath("$.publishedAt").value(nullValue()))
 			.andExpect(jsonPath("$.title").value("Edited title"))
 			.andExpect(jsonPath("$.stage").value("LIVE"))
 			.andExpect(jsonPath("$.askingPrice").value(nullValue()))
 			.andExpect(jsonPath("$.currency").value(nullValue()))
 			.andExpect(jsonPath("$.slug").value(draftSlug));
-		update(this.aliceToken, rejected, edit).andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("REJECTED"));
-		assertThat(statusOf(rejected)).isEqualTo("REJECTED");
+		assertThat(statusOf(draft)).isEqualTo("DRAFT");
+		this.mockMvc.perform(get(LISTINGS + "/" + draftSlug)).andExpect(status().isNotFound());
 	}
 
 	@Test
-	void editingAPublishedListingSendsItBackToReviewAndHidesIt() throws Exception {
+	void editingAPublishedListingKeepsItPublishedAndPublicWithTheSamePublishedAt() throws Exception {
 		long id = createListing(this.aliceToken, "Live listing");
-		publish(id, Instant.parse("2026-02-01T00:00:00Z"));
+		publishAt(id, Instant.parse("2026-02-01T00:00:00Z"));
+		setUpdatedAt(id, Instant.parse("2026-02-01T00:00:00Z"));
 		String slug = slugOfListing(id);
-		this.mockMvc.perform(get(LISTINGS + "/" + slug)).andExpect(status().isOk());
 
 		Map<String, Object> edit = body();
 		edit.put("title", "Live listing, edited");
 		update(this.aliceToken, id, edit).andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
-			.andExpect(jsonPath("$.publishedAt").value(nullValue()))
+			.andExpect(jsonPath("$.status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.publishedAt").value("2026-02-01T00:00:00Z"))
+			.andExpect(jsonPath("$.updatedAt").value(not("2026-02-01T00:00:00Z")))
 			.andExpect(jsonPath("$.slug").value(slug));
 
-		assertThat(statusOf(id)).isEqualTo("PENDING_REVIEW");
-		assertThat(this.jdbc.queryForObject("SELECT published_at FROM listings WHERE id = ?", Object.class, id)).isNull();
-		this.mockMvc.perform(get(LISTINGS + "/" + slug)).andExpect(status().isNotFound());
-		this.mockMvc.perform(get(LISTINGS)).andExpect(jsonPath("$.totalElements").value(0));
+		assertThat(statusOf(id)).isEqualTo("PUBLISHED");
+		assertThat(publishedAtOf(id)).isEqualTo(LocalDateTime.of(2026, 2, 1, 0, 0));
+		assertThat(this.jdbc.queryForObject("SELECT updated_at FROM listings WHERE id = ?", LocalDateTime.class, id))
+			.isAfter(LocalDateTime.of(2026, 2, 1, 0, 0));
+		this.mockMvc.perform(get(LISTINGS + "/" + slug))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.title").value("Live listing, edited"));
+		this.mockMvc.perform(get(LISTINGS)).andExpect(jsonPath("$.totalElements").value(1));
 	}
 
 	@Test
-	void editingIsRefusedWhilePendingArchivedOrSuspended() throws Exception {
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.PENDING_REVIEW, ListingStatus.ARCHIVED,
-				ListingStatus.SUSPENDED }) {
-			long id = createListing(this.aliceToken, "Locked " + status);
-			setStatus(id, status);
+	void editingIsRefusedWhenArchivedOrSuspended() throws Exception {
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.ARCHIVED, ListingStatus.SUSPENDED }) {
+			long id = listingIn(status, "Locked " + status);
 			Map<String, Object> edit = body();
 			edit.put("title", "Changed");
 
@@ -566,13 +619,16 @@ class ListingApiIntegrationTest {
 				.andExpect(jsonPath("$.detail").value("A listing with status " + status + " cannot be edited."));
 			assertThat(this.jdbc.queryForObject("SELECT title FROM listings WHERE id = ?", String.class, id))
 				.isEqualTo("Locked " + status);
+			assertThat(statusOf(id)).isEqualTo(status.name());
 		}
 	}
+
+	// ---- Archiving ---------------------------------------------------------------------
 
 	@Test
 	void archivingAPublishedListingHidesItButKeepsTheRowAndPublicationDate() throws Exception {
 		long id = createListing(this.aliceToken, "To archive");
-		publish(id, Instant.parse("2026-02-01T00:00:00Z"));
+		publishAt(id, Instant.parse("2026-02-01T00:00:00Z"));
 		String slug = slugOfListing(id);
 
 		archive(this.aliceToken, id).andExpect(status().isNoContent());
@@ -581,29 +637,32 @@ class ListingApiIntegrationTest {
 		this.mockMvc.perform(get(LISTINGS)).andExpect(jsonPath("$.totalElements").value(0));
 		assertThat(this.listingRepository.existsById(id)).isTrue();
 		assertThat(statusOf(id)).isEqualTo("ARCHIVED");
-		assertThat(this.jdbc.queryForObject("SELECT published_at FROM listings WHERE id = ?", LocalDateTime.class, id))
-			.isEqualTo(LocalDateTime.of(2026, 2, 1, 0, 0));
-		// Still visible to the owner.
+		assertThat(publishedAtOf(id)).isEqualTo(LocalDateTime.of(2026, 2, 1, 0, 0));
+		// Still visible to the owner, individually and in /mine.
 		this.mockMvc.perform(get(MINE + "/" + id).header(HttpHeaders.AUTHORIZATION, bearer(this.aliceToken)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("ARCHIVED"));
+		this.mockMvc.perform(get(MINE).header(HttpHeaders.AUTHORIZATION, bearer(this.aliceToken)))
+			.andExpect(jsonPath("$.totalElements").value(1))
+			.andExpect(jsonPath("$.content[0].status").value("ARCHIVED"));
 	}
 
 	@Test
 	void archiveRulesPerStatus() throws Exception {
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.REJECTED,
-				ListingStatus.PENDING_REVIEW, ListingStatus.ARCHIVED }) {
-			long id = createListing(this.aliceToken, "Archive " + status);
-			setStatus(id, status);
-			archive(this.aliceToken, id).andExpect(status().isNoContent());
-			assertThat(statusOf(id)).isEqualTo("ARCHIVED");
-		}
-		long suspended = createListing(this.aliceToken, "Suspended");
-		setStatus(suspended, ListingStatus.SUSPENDED);
+		long draft = createListing(this.aliceToken, "Archive draft");
+		archive(this.aliceToken, draft).andExpect(status().isNoContent());
+		assertThat(statusOf(draft)).isEqualTo("ARCHIVED");
+		assertThat(publishedAtOf(draft)).isNull();
+
+		// Repeating the archive is safe.
+		archive(this.aliceToken, draft).andExpect(status().isNoContent());
+		assertThat(statusOf(draft)).isEqualTo("ARCHIVED");
+
+		long suspended = listingIn(ListingStatus.SUSPENDED, "Suspended");
 		archive(this.aliceToken, suspended).andExpect(status().isConflict())
 			.andExpect(jsonPath("$.detail").value("A listing with status SUSPENDED cannot be archived."));
 		assertThat(statusOf(suspended)).isEqualTo("SUSPENDED");
-		assertThat(this.listingRepository.count()).isEqualTo(5);
+		assertThat(this.listingRepository.count()).isEqualTo(2);
 	}
 
 	// ---- Security ----------------------------------------------------------------------
@@ -616,7 +675,7 @@ class ListingApiIntegrationTest {
 		for (MockHttpServletRequestBuilder request : List.of(
 				post(LISTINGS).contentType(MediaType.APPLICATION_JSON).content(json), get(MINE), get(MINE + "/" + id),
 				put(LISTINGS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(json),
-				post(LISTINGS + "/" + id + "/submit"), delete(LISTINGS + "/" + id))) {
+				post(LISTINGS + "/" + id + "/publish"), delete(LISTINGS + "/" + id))) {
 			this.mockMvc.perform(request)
 				.andExpect(status().isUnauthorized())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
@@ -633,7 +692,7 @@ class ListingApiIntegrationTest {
 		create(this.aliceToken, body()).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.detail").value("This account is suspended."));
 		update(this.aliceToken, id, body()).andExpect(status().isForbidden());
-		submit(this.aliceToken, id).andExpect(status().isForbidden());
+		publish(this.aliceToken, id).andExpect(status().isForbidden());
 		archive(this.aliceToken, id).andExpect(status().isForbidden());
 		this.mockMvc.perform(get(MINE).header(HttpHeaders.AUTHORIZATION, bearer(this.aliceToken)))
 			.andExpect(status().isOk())
@@ -723,8 +782,29 @@ class ListingApiIntegrationTest {
 		return this.mockMvc.perform(withJson(put(LISTINGS + "/" + id), token, body));
 	}
 
-	private ResultActions submit(String token, long id) throws Exception {
-		return this.mockMvc.perform(post(LISTINGS + "/" + id + "/submit").header(HttpHeaders.AUTHORIZATION, bearer(token)));
+	private ResultActions publish(String token, long id) throws Exception {
+		return this.mockMvc.perform(post(LISTINGS + "/" + id + "/publish").header(HttpHeaders.AUTHORIZATION, bearer(token)));
+	}
+
+	/**
+	 * Creates one of Alice's listings and brings it into {@code status} through the real
+	 * owner endpoints; SUSPENDED has no API yet (future trust-and-safety), so it is set with
+	 * SQL after a real publish.
+	 */
+	private long listingIn(ListingStatus status, String title) throws Exception {
+		long id = createListing(this.aliceToken, title);
+		switch (status) {
+			case DRAFT -> {
+			}
+			case PUBLISHED -> publish(this.aliceToken, id).andExpect(status().isOk());
+			case ARCHIVED -> archive(this.aliceToken, id).andExpect(status().isNoContent());
+			case SUSPENDED -> {
+				publish(this.aliceToken, id).andExpect(status().isOk());
+				this.jdbc.update("UPDATE listings SET status = 'SUSPENDED' WHERE id = ?", id);
+			}
+		}
+		assertThat(statusOf(id)).isEqualTo(status.name());
+		return id;
 	}
 
 	private ResultActions archive(String token, long id) throws Exception {
@@ -754,14 +834,18 @@ class ListingApiIntegrationTest {
 		return this.jdbc.queryForObject("SELECT status FROM listings WHERE id = ?", String.class, id);
 	}
 
-	// Stand-in for the future moderation batch. Timestamps are written as UTC, like Hibernate does.
-	private void publish(long id, Instant publishedAt) {
-		this.jdbc.update("UPDATE listings SET status = 'PUBLISHED', published_at = ? WHERE id = ?",
-				LocalDateTime.ofInstant(publishedAt, ZoneOffset.UTC), id);
+	private LocalDateTime publishedAtOf(long id) {
+		return this.jdbc.queryForObject("SELECT published_at FROM listings WHERE id = ?", LocalDateTime.class, id);
 	}
 
-	private void setStatus(long id, ListingStatus status) {
-		this.jdbc.update("UPDATE listings SET status = ? WHERE id = ?", status.name(), id);
+	/**
+	 * Publishes one of Alice's listings through the real endpoint, then pins its
+	 * {@code publishedAt} for deterministic ordering. Written as UTC, like Hibernate does.
+	 */
+	private void publishAt(long id, Instant publishedAt) throws Exception {
+		publish(this.aliceToken, id).andExpect(status().isOk());
+		this.jdbc.update("UPDATE listings SET published_at = ? WHERE id = ?",
+				LocalDateTime.ofInstant(publishedAt, ZoneOffset.UTC), id);
 	}
 
 	private void setUpdatedAt(long id, Instant updatedAt) {

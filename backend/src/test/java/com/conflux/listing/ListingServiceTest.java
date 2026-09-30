@@ -61,6 +61,15 @@ class ListingServiceTest {
 		verify(this.slugGenerator, times(ListingService.MAX_SLUG_ATTEMPTS)).generate(anyString());
 	}
 
+	@Test
+	void searchPatternIsTrimmedLowerCasedEscapedAndNullWhenBlank() {
+		assertThat(ListingService.searchPattern(null)).isNull();
+		assertThat(ListingService.searchPattern("")).isNull();
+		assertThat(ListingService.searchPattern(" \t ")).isNull();
+		assertThat(ListingService.searchPattern("  Invoice AI ")).isEqualTo("%invoice ai%");
+		assertThat(ListingService.searchPattern("100%_off!")).isEqualTo("%100!%!_off!!%");
+	}
+
 	private static ListingRequest request() {
 		return new ListingRequest("Title", "Pitch", "Description", null, null, ListingAssetType.IDEA,
 				ListingMarketplaceMode.ACQUIRE, ListingCategory.AI, ListingStage.CONCEPT, null, null, null, null);

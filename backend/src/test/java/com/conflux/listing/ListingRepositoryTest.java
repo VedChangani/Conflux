@@ -236,7 +236,7 @@ class ListingRepositoryTest {
 		Listing listing = new Listing(this.owner, "Dev tool", "dev-tool", "Pitch", "Description",
 				ListingAssetType.STARTUP, ListingMarketplaceMode.COLLABORATE, ListingCategory.DEVELOPER_TOOLS,
 				ListingStage.REVENUE);
-		listing.setStatus(ListingStatus.PENDING_REVIEW);
+		ListingTestStates.moveTo(listing, ListingStatus.PUBLISHED);
 		Long id = this.listingRepository.saveAndFlush(listing).getId();
 		this.entityManager.clear();
 
@@ -244,14 +244,14 @@ class ListingRepositoryTest {
 				"SELECT asset_type, marketplace_mode, category, stage, status FROM listings WHERE id = ?1")
 			.setParameter(1, id)
 			.getSingleResult();
-		assertThat(row).containsExactly("STARTUP", "COLLABORATE", "DEVELOPER_TOOLS", "REVENUE", "PENDING_REVIEW");
+		assertThat(row).containsExactly("STARTUP", "COLLABORATE", "DEVELOPER_TOOLS", "REVENUE", "PUBLISHED");
 
 		Listing found = this.listingRepository.findById(id).orElseThrow();
 		assertThat(found.getAssetType()).isEqualTo(ListingAssetType.STARTUP);
 		assertThat(found.getMarketplaceMode()).isEqualTo(ListingMarketplaceMode.COLLABORATE);
 		assertThat(found.getCategory()).isEqualTo(ListingCategory.DEVELOPER_TOOLS);
 		assertThat(found.getStage()).isEqualTo(ListingStage.REVENUE);
-		assertThat(found.getStatus()).isEqualTo(ListingStatus.PENDING_REVIEW);
+		assertThat(found.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
 	}
 
 	@Test
@@ -277,7 +277,7 @@ class ListingRepositoryTest {
 		}
 		for (ListingStatus status : ListingStatus.values()) {
 			Listing listing = newListing("status-" + status.ordinal());
-			listing.setStatus(status);
+			ListingTestStates.moveTo(listing, status);
 			this.listingRepository.save(listing);
 			expected++;
 		}
@@ -411,7 +411,7 @@ class ListingRepositoryTest {
 	void findsByStatusWithPaging() {
 		for (int i = 0; i < 3; i++) {
 			Listing published = newListing("published-" + i);
-			published.setStatus(ListingStatus.PUBLISHED);
+			ListingTestStates.moveTo(published, ListingStatus.PUBLISHED);
 			this.listingRepository.save(published);
 		}
 		this.listingRepository.save(newListing("draft"));
@@ -431,7 +431,7 @@ class ListingRepositoryTest {
 	@Test
 	void publicQueriesFetchTheOwnerInTheSameQuery() {
 		Listing listing = newListing("fetched-owner");
-		listing.setStatus(ListingStatus.PUBLISHED);
+		ListingTestStates.moveTo(listing, ListingStatus.PUBLISHED);
 		this.listingRepository.saveAndFlush(listing);
 		this.entityManager.clear();
 
@@ -446,6 +446,28 @@ class ListingRepositoryTest {
 		assertThat(Hibernate.isInitialized(bySlug.getOwner())).isTrue();
 		assertThat(bySlug.getOwner().getUsername()).isEqualTo("owner");
 		assertThat(this.listingRepository.findBySlugAndStatus("fetched-owner", ListingStatus.DRAFT)).isEmpty();
+	}
+
+	@Test
+	void discoveryQueryReturnsOnlyPublishedListingsWithTheirOwnerFetched() {
+		Listing published = ListingTestStates.moveTo(newListing("discover-published"), ListingStatus.PUBLISHED);
+		this.listingRepository.save(published);
+		for (ListingStatus hidden : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.ARCHIVED,
+				ListingStatus.SUSPENDED }) {
+			this.listingRepository.save(ListingTestStates.moveTo(newListing("discover-" + hidden.ordinal()), hidden));
+		}
+		this.listingRepository.flush();
+		this.entityManager.clear();
+
+		List<Listing> found = this.listingRepository
+			.findPublished("%resume%", ListingAssetType.MVP, ListingMarketplaceMode.ACQUIRE, ListingCategory.AI,
+					ListingStage.MVP, PageRequest.of(0, 10, ListingSort.NEWEST.toSort()))
+			.getContent();
+
+		assertThat(found).extracting(Listing::getSlug).containsExactly("discover-published");
+		assertThat(Hibernate.isInitialized(found.get(0).getOwner())).isTrue();
+		assertThat(this.listingRepository.findPublished(null, null, null, null, null, PageRequest.of(0, 10))
+			.getContent()).extracting(Listing::getStatus).containsOnly(ListingStatus.PUBLISHED);
 	}
 
 	@Test
