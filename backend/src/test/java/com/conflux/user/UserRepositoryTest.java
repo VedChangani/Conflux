@@ -1,5 +1,6 @@
 package com.conflux.user;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.flywaydb.core.Flyway;
@@ -37,7 +38,11 @@ class UserRepositoryTest {
 
 	@Test
 	void flywayMigrationCreatesUsersTable() {
-		MigrationInfo v1 = this.flyway.info().current();
+		// V1 specifically (later migrations exist), not merely the current version.
+		MigrationInfo v1 = Arrays.stream(this.flyway.info().applied())
+			.filter(migration -> "1".equals(migration.getVersion().getVersion()))
+			.findFirst()
+			.orElse(null);
 		assertThat(v1).isNotNull();
 		assertThat(v1.getVersion().getVersion()).isEqualTo("1");
 		assertThat(v1.getScript()).isEqualTo("V1__create_users_table.sql");
@@ -166,6 +171,11 @@ class UserRepositoryTest {
 
 		assertThat(this.userRepository.existsByEmail(User.normalizeEmail(" dave@EXAMPLE.com"))).isTrue();
 		assertThat(this.userRepository.existsByEmail("nobody@example.com")).isFalse();
+
+		assertThat(this.userRepository.findByUsername(User.normalizeUsername(" DAVE ")))
+			.map(User::getEmail)
+			.contains("dave@example.com");
+		assertThat(this.userRepository.findByUsername("nobody")).isEmpty();
 
 		assertThat(this.userRepository.existsByUsername(User.normalizeUsername("DAVE"))).isTrue();
 		assertThat(this.userRepository.existsByUsername("nobody")).isFalse();

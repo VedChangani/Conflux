@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,6 +28,13 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "users")
 public class User {
+
+	/**
+	 * Human-readable username rule, applied after trimming and lower-casing.
+	 */
+	public static final String USERNAME_RULE = "3-30 characters, only a-z, 0-9, '_' and '-'";
+
+	private static final Pattern USERNAME_PATTERN = Pattern.compile("[a-z0-9_-]{3,30}");
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -99,10 +107,24 @@ public class User {
 	}
 
 	/**
-	 * Canonical form of a username: surrounding whitespace removed, lower-cased.
+	 * Canonical form of a username: surrounding whitespace removed, lower-cased. The
+	 * result must match {@link #USERNAME_RULE}; anything else (including accented or
+	 * other non-ASCII letters) is rejected rather than rewritten.
+	 * @throws IllegalArgumentException if the username does not satisfy the rule
 	 */
 	public static String normalizeUsername(String username) {
-		return normalizeIdentifier(username, "username");
+		String normalized = normalizeIdentifier(username, "username");
+		if (!USERNAME_PATTERN.matcher(normalized).matches()) {
+			throw new IllegalArgumentException("username must satisfy: " + USERNAME_RULE);
+		}
+		return normalized;
+	}
+
+	/**
+	 * Whether {@link #normalizeUsername(String)} would accept the given input.
+	 */
+	public static boolean isValidUsername(String username) {
+		return username != null && USERNAME_PATTERN.matcher(username.strip().toLowerCase(Locale.ROOT)).matches();
 	}
 
 	private static String normalizeIdentifier(String value, String name) {
