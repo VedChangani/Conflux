@@ -5,6 +5,7 @@ import java.io.IOException;
 import com.conflux.auth.AuthController;
 import com.conflux.common.web.HealthController;
 import com.conflux.listing.ListingController;
+import com.conflux.user.UserController;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -26,8 +27,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 /**
  * Security for a stateless JSON API authenticated with JWT bearer tokens
  * ({@code Authorization: Bearer <token>}). Registration, login, health, published
- * listing browsing/detail and the error page are public; everything else requires a
- * valid token.
+ * listing browsing/detail, public user profiles and the error page are public;
+ * everything else requires a valid token.
  * <p>
  * Authentication (401) and authorization (403) failures raised by the filter chain are
  * handed to Spring MVC's exception resolvers so that they are rendered by
@@ -66,6 +67,7 @@ public class SecurityConfig {
 				.authenticated()
 				.requestMatchers(HttpMethod.GET, ListingController.BASE_PATH, ListingController.BASE_PATH + "/*")
 				.permitAll()
+				.requestMatchers(HttpMethod.GET, UserController.BASE_PATH + "/*").permitAll()
 				.requestMatchers("/error").permitAll()
 				.anyRequest().authenticated());
 		return http.build();

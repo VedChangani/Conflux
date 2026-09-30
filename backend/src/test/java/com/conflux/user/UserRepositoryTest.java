@@ -181,4 +181,45 @@ class UserRepositoryTest {
 		assertThat(this.userRepository.existsByUsername("nobody")).isFalse();
 	}
 
+	@Test
+	void v7SizesTheOptionalProfileColumnsToTheProfileLimits() {
+		MigrationInfo v7 = Arrays.stream(this.flyway.info().applied())
+			.filter(migration -> "7".equals(migration.getVersion().getVersion()))
+			.findFirst()
+			.orElse(null);
+		assertThat(v7).isNotNull();
+		assertThat(v7.getScript()).isEqualTo("V7__resize_user_profile_fields.sql");
+		assertThat(v7.getState()).isEqualTo(MigrationState.SUCCESS);
+
+		List<?> rows = this.entityManager.getEntityManager()
+			.createNativeQuery("SELECT column_name, character_maximum_length, is_nullable FROM information_schema.columns "
+					+ "WHERE table_schema = SCHEMA() AND table_name = 'users' "
+					+ "AND column_name IN ('bio', 'location', 'website_url', 'github_url', 'linkedin_url')")
+			.getResultList();
+		java.util.Map<String, String> columns = new java.util.HashMap<>();
+		for (Object row : rows) {
+			Object[] values = (Object[]) row;
+			columns.put((String) values[0], ((Number) values[1]).intValue() + " " + values[2]);
+		}
+		assertThat(columns).containsEntry("bio", "500 YES")
+			.containsEntry("location", "120 YES")
+			.containsEntry("website_url", "255 YES")
+			.containsEntry("github_url", "255 YES")
+			.containsEntry("linkedin_url", "255 YES");
+	}
+
+	@Test
+	void findsByUsernameOnlyWithTheRequestedStatus() {
+		User active = this.userRepository.saveAndFlush(new User("active@example.com", "hash", "active", "Active"));
+		User suspended = new User("suspended@example.com", "hash", "suspended", "Suspended");
+		suspended.setStatus(UserStatus.SUSPENDED);
+		this.userRepository.saveAndFlush(suspended);
+
+		assertThat(this.userRepository.findByUsernameAndStatus("active", UserStatus.ACTIVE)).map(User::getId)
+			.contains(active.getId());
+		assertThat(this.userRepository.findByUsernameAndStatus("suspended", UserStatus.ACTIVE)).isEmpty();
+		assertThat(this.userRepository.findByUsernameAndStatus("suspended", UserStatus.SUSPENDED)).isPresent();
+		assertThat(this.userRepository.findByUsernameAndStatus("nobody", UserStatus.ACTIVE)).isEmpty();
+	}
+
 }

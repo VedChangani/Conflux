@@ -36,6 +36,15 @@ public class User {
 
 	private static final Pattern USERNAME_PATTERN = Pattern.compile("[a-z0-9_-]{3,30}");
 
+	/** Maximum lengths of the optional public profile fields (see V7). */
+	public static final int BIO_MAX_LENGTH = 500;
+
+	public static final int LOCATION_MAX_LENGTH = 120;
+
+	public static final int URL_MAX_LENGTH = 255;
+
+	public static final int DISPLAY_NAME_MAX_LENGTH = 100;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -49,22 +58,22 @@ public class User {
 	@Column(name = "username", nullable = false, length = 50)
 	private String username;
 
-	@Column(name = "display_name", nullable = false, length = 100)
+	@Column(name = "display_name", nullable = false, length = DISPLAY_NAME_MAX_LENGTH)
 	private String displayName;
 
-	@Column(name = "bio", length = 1000)
+	@Column(name = "bio", length = BIO_MAX_LENGTH)
 	private String bio;
 
-	@Column(name = "location", length = 100)
+	@Column(name = "location", length = LOCATION_MAX_LENGTH)
 	private String location;
 
-	@Column(name = "website_url", length = 500)
+	@Column(name = "website_url", length = URL_MAX_LENGTH)
 	private String websiteUrl;
 
-	@Column(name = "github_url", length = 500)
+	@Column(name = "github_url", length = URL_MAX_LENGTH)
 	private String githubUrl;
 
-	@Column(name = "linkedin_url", length = 500)
+	@Column(name = "linkedin_url", length = URL_MAX_LENGTH)
 	private String linkedinUrl;
 
 	@Enumerated(EnumType.STRING)
@@ -136,6 +145,11 @@ public class User {
 		return normalized;
 	}
 
+	// Optional profile text: blank means "not provided". Other content is stored as given.
+	private static String blankToNull(String value) {
+		return (value == null || value.isBlank()) ? null : value;
+	}
+
 	@PrePersist
 	void onCreate() {
 		Instant now = now();
@@ -194,7 +208,7 @@ public class User {
 	}
 
 	public void setBio(String bio) {
-		this.bio = bio;
+		this.bio = blankToNull(bio);
 	}
 
 	public String getLocation() {
@@ -202,7 +216,7 @@ public class User {
 	}
 
 	public void setLocation(String location) {
-		this.location = location;
+		this.location = blankToNull(location);
 	}
 
 	public String getWebsiteUrl() {
@@ -210,7 +224,7 @@ public class User {
 	}
 
 	public void setWebsiteUrl(String websiteUrl) {
-		this.websiteUrl = websiteUrl;
+		this.websiteUrl = blankToNull(websiteUrl);
 	}
 
 	public String getGithubUrl() {
@@ -218,7 +232,7 @@ public class User {
 	}
 
 	public void setGithubUrl(String githubUrl) {
-		this.githubUrl = githubUrl;
+		this.githubUrl = blankToNull(githubUrl);
 	}
 
 	public String getLinkedinUrl() {
@@ -226,7 +240,7 @@ public class User {
 	}
 
 	public void setLinkedinUrl(String linkedinUrl) {
-		this.linkedinUrl = linkedinUrl;
+		this.linkedinUrl = blankToNull(linkedinUrl);
 	}
 
 	public UserRole getRole() {

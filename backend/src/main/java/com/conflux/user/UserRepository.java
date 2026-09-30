@@ -14,6 +14,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	Optional<User> findByUsername(String username);
 
+	/**
+	 * A user by (normalized) username only if the account has the given status, e.g. ACTIVE
+	 * for public profiles.
+	 */
+	Optional<User> findByUsernameAndStatus(String username, UserStatus status);
+
 	boolean existsByEmail(String email);
 
 	boolean existsByUsername(String username);
