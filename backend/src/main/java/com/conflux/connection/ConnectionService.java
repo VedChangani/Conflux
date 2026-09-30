@@ -7,7 +7,6 @@ import com.conflux.auth.CurrentUser;
 import com.conflux.common.web.PageResponse;
 import com.conflux.listing.Listing;
 import com.conflux.listing.ListingRepository;
-import com.conflux.listing.ListingStatus;
 import com.conflux.message.ConversationService;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
@@ -77,7 +76,7 @@ public class ConnectionService {
 	 */
 	public InterestResult expressInterest(Long listingId) {
 		User requester = activeUser();
-		Listing listing = this.listingRepository.findByIdAndStatus(listingId, ListingStatus.PUBLISHED)
+		Listing listing = this.listingRepository.findPublicById(listingId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found."));
 		if (listing.getOwner().getId().equals(requester.getId())) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot express interest in your own listing.");

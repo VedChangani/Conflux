@@ -255,8 +255,27 @@ public class User {
 		return this.status;
 	}
 
-	public void setStatus(UserStatus status) {
-		this.status = Objects.requireNonNull(status, "status must not be null");
+	/**
+	 * Trust-and-safety suspension, ACTIVE to SUSPENDED. For administrative moderation only.
+	 * Nothing owned by the user is changed; visibility rules key off the account status.
+	 * @throws IllegalStateException if the account is not ACTIVE
+	 */
+	public void suspend() {
+		if (this.status != UserStatus.ACTIVE) {
+			throw new IllegalStateException("Only an active account can be suspended");
+		}
+		this.status = UserStatus.SUSPENDED;
+	}
+
+	/**
+	 * Lifts a suspension, SUSPENDED to ACTIVE. For administrative moderation only.
+	 * @throws IllegalStateException if the account is not SUSPENDED
+	 */
+	public void restore() {
+		if (this.status != UserStatus.SUSPENDED) {
+			throw new IllegalStateException("Only a suspended account can be restored");
+		}
+		this.status = UserStatus.ACTIVE;
 	}
 
 	public Instant getCreatedAt() {

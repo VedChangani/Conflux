@@ -21,15 +21,16 @@ public interface SavedListingRepository extends JpaRepository<SavedListing, Long
 	void deleteByUserIdAndListingId(Long userId, Long listingId);
 
 	/**
-	 * The user's saves whose listing is currently PUBLISHED (the status is fixed in the
-	 * query), with the listing and its owner fetched in the same query. Saves of listings
-	 * that are no longer public are kept but not returned.
+	 * The user's saves whose listing is currently publicly visible: PUBLISHED and owned by an
+	 * ACTIVE account (both fixed in the query), with the listing and its owner fetched in the
+	 * same query. Saves of listings that are no longer public are kept but not returned.
 	 */
 	@EntityGraph(attributePaths = { "listing", "listing.owner" })
 	@Query("""
 			select s from SavedListing s
 			where s.user.id = :userId
 			  and s.listing.status = com.conflux.listing.ListingStatus.PUBLISHED
+			  and s.listing.owner.status = com.conflux.user.UserStatus.ACTIVE
 			""")
 	Page<SavedListing> findPublishedByUserId(@Param("userId") Long userId, Pageable pageable);
 

@@ -286,9 +286,29 @@ class ListingTest {
 	}
 
 	@Test
+	void restoreReturnsASuspendedListingToPublishedWithItsOriginalPublishedAt() {
+		Listing listing = withStatus(ListingStatus.PUBLISHED);
+		Instant publishedAt = listing.getPublishedAt();
+		listing.suspend();
+
+		listing.restore();
+
+		assertThat(listing.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
+		assertThat(listing.getPublishedAt()).isEqualTo(publishedAt);
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.PUBLISHED,
+				ListingStatus.ARCHIVED }) {
+			Listing other = withStatus(status);
+			assertThatExceptionOfType(ListingStateException.class).as(status.name())
+				.isThrownBy(other::restore)
+				.withMessage("A listing with status " + status + " cannot be restored.");
+			assertThat(other.getStatus()).isEqualTo(status);
+		}
+	}
+
+	@Test
 	void noPublicMethodCanSetAnArbitraryStatus() {
 		assertThat(Listing.class.getMethods()).extracting(java.lang.reflect.Method::getName)
-			.doesNotContain("setStatus", "suspend");
+			.doesNotContain("setStatus", "suspend", "restore");
 	}
 
 	private Listing withStatus(ListingStatus status) {

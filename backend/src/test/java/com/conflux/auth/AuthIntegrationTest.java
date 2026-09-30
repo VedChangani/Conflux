@@ -318,7 +318,7 @@ class AuthIntegrationTest {
 	void suspendedUserCannotLogIn() throws Exception {
 		registerVed();
 		User user = this.userRepository.findByEmail("ved@example.com").orElseThrow();
-		user.setStatus(UserStatus.SUSPENDED);
+		user.suspend();
 		this.userRepository.save(user);
 
 		login("ved@example.com", PASSWORD)

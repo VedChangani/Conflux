@@ -9,7 +9,6 @@ import com.conflux.listing.ListingCategory;
 import com.conflux.listing.ListingMarketplaceMode;
 import com.conflux.listing.ListingRepository;
 import com.conflux.listing.ListingStage;
-import com.conflux.listing.ListingStatus;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -67,8 +66,7 @@ class SavedListingServiceTest {
 		Listing listing = new Listing(user, "Title", "title-0000abcd", "Pitch", "Description", ListingAssetType.IDEA,
 				ListingMarketplaceMode.ACQUIRE, ListingCategory.AI, ListingStage.CONCEPT);
 		listing.publish();
-		given(this.listingRepository.findByIdAndStatus(anyLong(), any(ListingStatus.class)))
-			.willReturn(Optional.of(listing));
+		given(this.listingRepository.findPublicById(anyLong())).willReturn(Optional.of(listing));
 	}
 
 }

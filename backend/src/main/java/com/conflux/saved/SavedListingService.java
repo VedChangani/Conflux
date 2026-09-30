@@ -4,7 +4,6 @@ import com.conflux.auth.CurrentUser;
 import com.conflux.common.web.PageResponse;
 import com.conflux.listing.Listing;
 import com.conflux.listing.ListingRepository;
-import com.conflux.listing.ListingStatus;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
 import com.conflux.user.UserStatus;
@@ -54,7 +53,7 @@ public class SavedListingService {
 	 */
 	public void save(Long listingId) {
 		User user = activeUser();
-		Listing listing = this.listingRepository.findByIdAndStatus(listingId, ListingStatus.PUBLISHED)
+		Listing listing = this.listingRepository.findPublicById(listingId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found."));
 		if (this.savedListingRepository.existsByUserIdAndListingId(user.getId(), listing.getId())) {
 			return;

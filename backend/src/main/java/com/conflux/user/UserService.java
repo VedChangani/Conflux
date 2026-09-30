@@ -3,6 +3,7 @@ package com.conflux.user;
 import com.conflux.auth.CurrentUser;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,10 +57,7 @@ public class UserService {
 	 */
 	@Transactional
 	public UserProfileResponse updateProfile(UpdateProfileRequest request) {
-		User user = currentAccount();
-		if (user.getStatus() != UserStatus.ACTIVE) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account is suspended.");
-		}
+		User user = currentActiveUser();
 		user.setDisplayName(request.displayName());
 		user.setBio(request.bio());
 		user.setLocation(request.location());
@@ -68,6 +66,39 @@ public class UserService {
 		user.setLinkedinUrl(request.linkedinUrl());
 		this.userRepository.saveAndFlush(user);
 		return UserProfileResponse.from(user);
+	}
+
+	/**
+	 * The authenticated administrator, re-checked against the database for every admin
+	 * operation. Routes under {@code /api/v1/admin/**} already require {@code ROLE_ADMIN} in
+	 * the token; this additionally stops a demoted or suspended admin whose token is still
+	 * valid.
+	 * @throws AccessDeniedException (403) if the account is no longer an administrator
+	 * @throws ResponseStatusException 403 if the account is suspended
+	 */
+	public User currentActiveAdmin() {
+		User user = currentAccount();
+		if (user.getRole() != UserRole.ADMIN) {
+			throw new AccessDeniedException("Administrator role required");
+		}
+		requireActive(user);
+		return user;
+	}
+
+	/**
+	 * The authenticated user, for write operations (suspended accounts cannot write).
+	 * @throws ResponseStatusException 403 if the account is suspended
+	 */
+	public User currentActiveUser() {
+		User user = currentAccount();
+		requireActive(user);
+		return user;
+	}
+
+	private static void requireActive(User user) {
+		if (user.getStatus() != UserStatus.ACTIVE) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account is suspended.");
+		}
 	}
 
 	private User currentAccount() {

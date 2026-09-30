@@ -23,6 +23,27 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 	Page<Message> findByConversationId(Long conversationId, Pageable pageable);
 
 	/**
+	 * A message only if the user participates in its conversation (the connection's
+	 * requester or its listing's owner), with its sender; anyone else's message is
+	 * indistinguishable from a missing one.
+	 */
+	@EntityGraph(attributePaths = "sender")
+	@Query("""
+			select m from Message m
+			where m.id = :id
+			  and (m.conversation.connection.requester.id = :userId
+			       or m.conversation.connection.listing.owner.id = :userId)
+			""")
+	Optional<Message> findForParticipant(@Param("id") Long id, @Param("userId") Long userId);
+
+	/**
+	 * Any message with its sender, conversation and listing (for admin report review only).
+	 */
+	@EntityGraph(attributePaths = { "sender", "conversation", "conversation.connection",
+			"conversation.connection.listing" })
+	Optional<Message> findWithContextById(Long id);
+
+	/**
 	 * The latest message of a conversation (newest first, then highest id).
 	 */
 	Optional<Message> findFirstByConversationIdOrderByCreatedAtDescIdDesc(Long conversationId);

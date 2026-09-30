@@ -122,7 +122,7 @@ class UserRepositoryTest {
 	void enumsArePersistedAsStrings() {
 		User user = new User("admin@example.com", "hash", "admin", "Admin");
 		user.setRole(UserRole.ADMIN);
-		user.setStatus(UserStatus.SUSPENDED);
+		user.suspend();
 		Long id = this.userRepository.saveAndFlush(user).getId();
 		this.entityManager.clear();
 
@@ -212,7 +212,7 @@ class UserRepositoryTest {
 	void findsByUsernameOnlyWithTheRequestedStatus() {
 		User active = this.userRepository.saveAndFlush(new User("active@example.com", "hash", "active", "Active"));
 		User suspended = new User("suspended@example.com", "hash", "suspended", "Suspended");
-		suspended.setStatus(UserStatus.SUSPENDED);
+		suspended.suspend();
 		this.userRepository.saveAndFlush(suspended);
 
 		assertThat(this.userRepository.findByUsernameAndStatus("active", UserStatus.ACTIVE)).map(User::getId)

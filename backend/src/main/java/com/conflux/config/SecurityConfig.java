@@ -3,6 +3,7 @@ package com.conflux.config;
 import java.io.IOException;
 
 import com.conflux.auth.AuthController;
+import com.conflux.common.web.ApiPaths;
 import com.conflux.common.web.HealthController;
 import com.conflux.listing.ListingController;
 import com.conflux.user.UserController;
@@ -28,7 +29,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  * Security for a stateless JSON API authenticated with JWT bearer tokens
  * ({@code Authorization: Bearer <token>}). Registration, login, health, published
  * listing browsing/detail, public user profiles and the error page are public;
- * everything else requires a valid token.
+ * {@code /api/v1/admin/**} requires {@code ROLE_ADMIN}; everything else requires a valid
+ * token.
  * <p>
  * Authentication (401) and authorization (403) failures raised by the filter chain are
  * handed to Spring MVC's exception resolvers so that they are rendered by
@@ -60,6 +62,8 @@ public class SecurityConfig {
 				.authenticationEntryPoint(entryPoint)
 				.accessDeniedHandler(accessDeniedHandler))
 			.authorizeHttpRequests(auth -> auth
+				// Whole admin namespace: anonymous -> 401, authenticated without ROLE_ADMIN -> 403.
+				.requestMatchers(ApiPaths.ADMIN + "/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, HealthController.HEALTH_PATH).permitAll()
 				.requestMatchers(HttpMethod.POST, AuthController.REGISTER_PATH, AuthController.LOGIN_PATH).permitAll()
 				// Must precede the public rule below, whose "/*" would also match "/mine".

@@ -34,8 +34,8 @@ import jakarta.persistence.Table;
  * New listings start as {@link ListingStatus#DRAFT} with no {@code publishedAt}. The status
  * only changes through explicit lifecycle methods that reject invalid transitions: the
  * owner's {@link #publish()} and {@link #archive()} (with {@link #requireEditable()} guarding
- * edits), and the package-private {@link #suspend()} reserved for future trust-and-safety
- * code. There is no status setter.
+ * edits), and the package-private {@link #suspend()} / {@link #restore()} used only by
+ * admin moderation ({@link ListingModerationService}). There is no status setter.
  */
 @Entity
 @Table(name = "listings")
@@ -253,6 +253,19 @@ public class Listing {
 			throw notAllowed("suspended");
 		}
 		this.status = ListingStatus.SUSPENDED;
+	}
+
+	/**
+	 * Trust-and-safety restoration: SUSPENDED back to PUBLISHED, keeping the original
+	 * {@code publishedAt}. Package-private like {@link #suspend()}: only
+	 * {@link ListingModerationService} uses it.
+	 * @throws ListingStateException for any other status
+	 */
+	void restore() {
+		if (this.status != ListingStatus.SUSPENDED) {
+			throw notAllowed("restored");
+		}
+		this.status = ListingStatus.PUBLISHED;
 	}
 
 	private ListingStateException notAllowed(String action) {

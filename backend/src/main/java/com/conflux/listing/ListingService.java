@@ -80,11 +80,12 @@ public class ListingService {
 	}
 
 	/**
-	 * @throws ResponseStatusException 404 unless the listing exists and is PUBLISHED
+	 * @throws ResponseStatusException 404 unless the listing is publicly visible (PUBLISHED
+	 * and its owner ACTIVE)
 	 */
 	@Transactional(readOnly = true)
 	public ListingDetailResponse publishedListing(String slug) {
-		return this.listingRepository.findBySlugAndStatus(slug, ListingStatus.PUBLISHED)
+		return this.listingRepository.findPublicBySlug(slug)
 			.map(ListingDetailResponse::from)
 			.orElseThrow(ListingService::notFound);
 	}
