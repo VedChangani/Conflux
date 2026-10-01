@@ -145,7 +145,7 @@ class TrustAndSafetyIntegrationTest {
 
 	@AfterEach
 	void cleanDatabase() {
-		for (String table : new String[] { "reports", "messages", "conversations", "connections", "saved_listings",
+		for (String table : new String[] { "moderation_actions", "reports", "messages", "conversations", "connections", "saved_listings",
 				"listings", "users" }) {
 			this.jdbc.update("DELETE FROM " + table);
 		}

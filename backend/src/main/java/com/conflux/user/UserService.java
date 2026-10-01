@@ -1,6 +1,8 @@
 package com.conflux.user;
 
 import com.conflux.auth.CurrentUser;
+import com.conflux.ratelimit.RateLimitOperation;
+import com.conflux.ratelimit.RateLimiter;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,9 +23,12 @@ public class UserService {
 
 	private final CurrentUser currentUser;
 
-	public UserService(UserRepository userRepository, CurrentUser currentUser) {
+	private final RateLimiter rateLimiter;
+
+	public UserService(UserRepository userRepository, CurrentUser currentUser, RateLimiter rateLimiter) {
 		this.userRepository = userRepository;
 		this.currentUser = currentUser;
+		this.rateLimiter = rateLimiter;
 	}
 
 	/**
@@ -54,6 +59,8 @@ public class UserService {
 	 * Replaces the authenticated user's editable profile fields. Username, email, role and
 	 * status cannot change here.
 	 * @throws ResponseStatusException 403 for a suspended account
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user updated the
+	 * profile too often recently
 	 */
 	@Transactional
 	public UserProfileResponse updateProfile(UpdateProfileRequest request) {
@@ -64,6 +71,8 @@ public class UserService {
 		user.setWebsiteUrl(request.websiteUrl());
 		user.setGithubUrl(request.githubUrl());
 		user.setLinkedinUrl(request.linkedinUrl());
+		// After the 403 check, before the flush; a 429 rolls the in-memory changes back.
+		this.rateLimiter.acquire(RateLimitOperation.PROFILE_UPDATE, this.currentUser.id().toString());
 		this.userRepository.saveAndFlush(user);
 		return UserProfileResponse.from(user);
 	}

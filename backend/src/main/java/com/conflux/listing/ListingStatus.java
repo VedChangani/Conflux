@@ -8,7 +8,8 @@ package com.conflux.listing;
  * <ul>
  * <li>publish (owner): {@code DRAFT -> PUBLISHED} (sets {@code publishedAt})</li>
  * <li>archive (owner): {@code DRAFT | PUBLISHED -> ARCHIVED} (keeps {@code publishedAt})</li>
- * <li>suspend (future trust-and-safety): {@code PUBLISHED -> SUSPENDED}</li>
+ * <li>suspend (admin moderation): {@code PUBLISHED -> SUSPENDED}</li>
+ * <li>restore (admin moderation): {@code SUSPENDED -> PUBLISHED}</li>
  * </ul>
  * Only PUBLISHED listings are publicly visible.
  */

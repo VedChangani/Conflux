@@ -245,7 +245,7 @@ public class Listing {
 	/**
 	 * Trust-and-safety suspension: PUBLISHED to SUSPENDED, hidden from the public, with
 	 * {@code publishedAt} kept as history. Package-private on purpose: there is no owner
-	 * or user path to it, and it is reserved for the future administrative feature.
+	 * or user path to it; only admin moderation ({@link ListingModerationService}) uses it.
 	 * @throws ListingStateException for any other status
 	 */
 	void suspend() {

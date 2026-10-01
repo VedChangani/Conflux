@@ -8,9 +8,10 @@ import com.conflux.common.web.PageResponse;
 import com.conflux.listing.Listing;
 import com.conflux.listing.ListingRepository;
 import com.conflux.message.ConversationService;
+import com.conflux.ratelimit.RateLimitOperation;
+import com.conflux.ratelimit.RateLimiter;
 import com.conflux.user.User;
-import com.conflux.user.UserRepository;
-import com.conflux.user.UserStatus;
+import com.conflux.user.UserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 
@@ -18,7 +19,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,6 +34,9 @@ import org.springframework.web.server.ResponseStatusException;
  * (404);</li>
  * <li>suspended accounts cannot change anything (403).</li>
  * </ul>
+ * The requester's or owner's rate limit (429) is checked only after every 403/404/409 check,
+ * and only for requests that actually change something; changes applied in memory before a
+ * 429 are rolled back with the transaction.
  */
 @Service
 public class ConnectionService {
@@ -44,7 +47,7 @@ public class ConnectionService {
 
 	private final ListingRepository listingRepository;
 
-	private final UserRepository userRepository;
+	private final UserService userService;
 
 	private final CurrentUser currentUser;
 
@@ -52,15 +55,18 @@ public class ConnectionService {
 
 	private final EntityManager entityManager;
 
+	private final RateLimiter rateLimiter;
+
 	public ConnectionService(ConnectionRepository connectionRepository, ListingRepository listingRepository,
-			UserRepository userRepository, CurrentUser currentUser, ConversationService conversationService,
-			EntityManager entityManager) {
+			UserService userService, CurrentUser currentUser, ConversationService conversationService,
+			EntityManager entityManager, RateLimiter rateLimiter) {
 		this.connectionRepository = connectionRepository;
 		this.listingRepository = listingRepository;
-		this.userRepository = userRepository;
+		this.userService = userService;
 		this.currentUser = currentUser;
 		this.conversationService = conversationService;
 		this.entityManager = entityManager;
+		this.rateLimiter = rateLimiter;
 	}
 
 	/**
@@ -73,9 +79,11 @@ public class ConnectionService {
 	 * ACCEPTED one
 	 * @throws ResponseStatusException 404 unless the listing is PUBLISHED; 409 for the
 	 * listing's owner or if an earlier interest was rejected or withdrawn
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user expressed
+	 * interest too often recently (only new connections count; a repeated request does not)
 	 */
 	public InterestResult expressInterest(Long listingId) {
-		User requester = activeUser();
+		User requester = this.userService.currentActiveUser();
 		Listing listing = this.listingRepository.findPublicById(listingId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found."));
 		if (listing.getOwner().getId().equals(requester.getId())) {
@@ -85,6 +93,7 @@ public class ConnectionService {
 		if (existing.isPresent()) {
 			return reuse(existing.get());
 		}
+		this.rateLimiter.acquire(RateLimitOperation.LISTING_INTEREST, this.currentUser.id().toString());
 		Connection connection = new Connection(listing, requester);
 		try {
 			this.connectionRepository.saveAndFlush(connection);
@@ -123,6 +132,8 @@ public class ConnectionService {
 	 * in the same transaction, so there is never an accepted connection without one (if
 	 * creating the conversation fails, the acceptance is rolled back).
 	 * @throws ResponseStatusException 409 if a concurrent request accepted it first
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner accepted or
+	 * rejected too often recently
 	 */
 	@Transactional
 	public ConnectionResponse accept(Long connectionId) {
@@ -139,6 +150,8 @@ public class ConnectionService {
 
 	/**
 	 * Listing owner only: PENDING to REJECTED. The connection is kept as history.
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner accepted or
+	 * rejected too often recently
 	 */
 	@Transactional
 	public ConnectionResponse reject(Long connectionId) {
@@ -147,27 +160,34 @@ public class ConnectionService {
 
 	/**
 	 * Requester only: PENDING to WITHDRAWN. The connection is kept as history.
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user withdrew too
+	 * often recently
 	 */
 	@Transactional
 	public void withdraw(Long connectionId) {
-		User user = activeUser();
+		User user = this.userService.currentActiveUser();
 		Connection connection = lockedParticipantConnection(connectionId, user.getId());
 		if (!connection.getRequester().getId().equals(user.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the requester can withdraw this request.");
 		}
 		transition(connection, Connection::withdraw);
+		// After every 403/404/409 check; a 429 rolls the (not yet flushed) change back.
+		this.rateLimiter.acquire(RateLimitOperation.CONNECTION_WITHDRAW, this.currentUser.id().toString());
 	}
 
 	// ---- Helpers --------------------------------------------------------------------
 
 	private Connection answerAsOwner(Long connectionId, Consumer<Connection> answer) {
-		User user = activeUser();
+		User user = this.userService.currentActiveUser();
 		Connection connection = lockedParticipantConnection(connectionId, user.getId());
 		if (!connection.getOwner().getId().equals(user.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN,
 					"Only the listing owner can accept or reject this request.");
 		}
 		transition(connection, answer);
+		// Accept and reject share one allowance. After every 403/404/409 check and before the
+		// flush; a 429 rolls the in-memory change back.
+		this.rateLimiter.acquire(RateLimitOperation.CONNECTION_DECISION, this.currentUser.id().toString());
 		// Flush so the response carries the updated timestamp.
 		this.connectionRepository.saveAndFlush(connection);
 		return connection;
@@ -212,16 +232,6 @@ public class ConnectionService {
 	private Connection participantConnection(Long connectionId, Long userId) {
 		return this.connectionRepository.findForParticipant(connectionId, userId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Connection not found."));
-	}
-
-	// Same rule as elsewhere: suspended accounts cannot change anything.
-	private User activeUser() {
-		User user = this.userRepository.findById(this.currentUser.id())
-			.orElseThrow(() -> new InvalidBearerTokenException("Token subject does not match an account"));
-		if (user.getStatus() != UserStatus.ACTIVE) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account is suspended.");
-		}
-		return user;
 	}
 
 }

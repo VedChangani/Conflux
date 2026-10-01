@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.conflux.ratelimit.RateLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +29,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * Standard Spring MVC exceptions (validation failures, malformed request bodies,
  * unsupported methods, missing resources, {@code ResponseStatusException}, etc.) are
  * handled by {@link ResponseEntityExceptionHandler}. Spring Security failures are mapped
- * to 401/403; the security filter chain also routes its own failures here. Anything else
- * becomes a generic 500 response that does not reveal internal details.
+ * to 401/403; the security filter chain also routes its own failures here. Exceeded rate
+ * limits are mapped to 429. Anything else becomes a generic 500 response that does not
+ * reveal internal details.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -61,6 +63,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
 				"You do not have permission to access this resource.");
+	}
+
+	/**
+	 * 429 with {@code Retry-After}. The detail is fixed: it reveals nothing about the
+	 * limiter or, for login and registration, about whether an account exists.
+	 */
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException ex) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.header(HttpHeaders.RETRY_AFTER, Long.toString(ex.getRetryAfterSeconds()))
+			.body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+					"Too many requests. Please try again later."));
 	}
 
 	@ExceptionHandler(Exception.class)

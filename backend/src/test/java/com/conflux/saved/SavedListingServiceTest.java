@@ -9,8 +9,10 @@ import com.conflux.listing.ListingCategory;
 import com.conflux.listing.ListingMarketplaceMode;
 import com.conflux.listing.ListingRepository;
 import com.conflux.listing.ListingStage;
+import com.conflux.ratelimit.RateLimiter;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
+import com.conflux.user.UserService;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,7 +39,8 @@ class SavedListingServiceTest {
 	private final CurrentUser currentUser = mock(CurrentUser.class);
 
 	private final SavedListingService service = new SavedListingService(this.savedListingRepository,
-			this.listingRepository, this.userRepository, this.currentUser);
+			this.listingRepository, new UserService(this.userRepository, this.currentUser, mock(RateLimiter.class)),
+			this.currentUser, mock(RateLimiter.class));
 
 	@Test
 	void losingARaceAgainstAnIdenticalSaveIsTheSameAsARepeatedSave() {

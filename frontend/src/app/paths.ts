@@ -1,0 +1,17 @@
+export const paths = {
+  home: '/',
+  login: '/login',
+  register: '/register',
+  listings: '/listings',
+  saved: '/saved',
+  connections: '/connections',
+  connectionsReceived: '/connections/received',
+  connectionsSent: '/connections/sent',
+  connection: (id: number) => `/connections/${id}`,
+  messages: '/messages',
+  conversation: (id: number) => `/messages/${id}`,
+  conversationForConnection: (connectionId: number) => `/messages/connection/${connectionId}`,
+  listing: (slug: string) => `/listings/${encodeURIComponent(slug)}`,
+  profile: '/profile',
+  user: (username: string) => `/users/${encodeURIComponent(username)}`,
+} as const

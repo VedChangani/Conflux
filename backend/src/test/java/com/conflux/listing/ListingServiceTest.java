@@ -3,8 +3,10 @@ package com.conflux.listing;
 import java.util.Optional;
 
 import com.conflux.auth.CurrentUser;
+import com.conflux.ratelimit.RateLimiter;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
+import com.conflux.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,8 +36,9 @@ class ListingServiceTest {
 
 	private final CurrentUser currentUser = mock(CurrentUser.class);
 
-	private final ListingService service = new ListingService(this.listingRepository, this.userRepository,
-			this.slugGenerator, this.currentUser);
+	private final ListingService service = new ListingService(this.listingRepository,
+			new UserService(this.userRepository, this.currentUser, mock(RateLimiter.class)), this.slugGenerator,
+			this.currentUser, mock(RateLimiter.class));
 
 	@BeforeEach
 	void authenticateUser1() {

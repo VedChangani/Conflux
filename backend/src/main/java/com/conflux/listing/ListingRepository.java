@@ -21,12 +21,6 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
 	boolean existsBySlug(String slug);
 
 	/**
-	 * A listing only if it is in the given status, with its owner.
-	 */
-	@EntityGraph(attributePaths = "owner")
-	Optional<Listing> findByIdAndStatus(Long id, ListingStatus status);
-
-	/**
 	 * A listing by id only if it is publicly visible: PUBLISHED and owned by an ACTIVE
 	 * account (a suspended owner hides their listings without changing them). Used by public
 	 * actions (save, express interest, report). The owner is fetched.

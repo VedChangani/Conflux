@@ -4,16 +4,16 @@ import java.util.Locale;
 
 import com.conflux.auth.CurrentUser;
 import com.conflux.common.web.PageResponse;
+import com.conflux.ratelimit.RateLimitOperation;
+import com.conflux.ratelimit.RateLimiter;
 import com.conflux.user.User;
-import com.conflux.user.UserRepository;
-import com.conflux.user.UserStatus;
+import com.conflux.user.UserService;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,6 +23,11 @@ import org.springframework.web.server.ResponseStatusException;
  * from the verified JWT) and only ever load listings through owner-scoped queries, so
  * another user's listing behaves exactly like a missing one (404). Responses are mapped inside the
  * transaction.
+ * <p>
+ * Every write checks, in this order: the account (403 if suspended), ownership (404), the
+ * listing's status (409), and only then the owner's rate limit (429). A write that changes
+ * nothing (archiving an archived listing) is answered normally without using the allowance.
+ * Changes applied in memory before a 429 are never flushed: the transaction rolls back.
  */
 @Service
 public class ListingService {
@@ -33,18 +38,21 @@ public class ListingService {
 
 	private final ListingRepository listingRepository;
 
-	private final UserRepository userRepository;
+	private final UserService userService;
 
 	private final SlugGenerator slugGenerator;
 
 	private final CurrentUser currentUser;
 
-	public ListingService(ListingRepository listingRepository, UserRepository userRepository,
-			SlugGenerator slugGenerator, CurrentUser currentUser) {
+	private final RateLimiter rateLimiter;
+
+	public ListingService(ListingRepository listingRepository, UserService userService, SlugGenerator slugGenerator,
+			CurrentUser currentUser, RateLimiter rateLimiter) {
 		this.listingRepository = listingRepository;
-		this.userRepository = userRepository;
+		this.userService = userService;
 		this.slugGenerator = slugGenerator;
 		this.currentUser = currentUser;
+		this.rateLimiter = rateLimiter;
 	}
 
 	// ---- Public ---------------------------------------------------------------------
@@ -95,14 +103,16 @@ public class ListingService {
 	/**
 	 * Creates a DRAFT listing owned by the current user with a server-generated slug.
 	 * @throws ResponseStatusException 409 if no unique slug could be stored
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user created too
+	 * many listings recently
 	 */
 	@Transactional
 	public ListingDetailResponse create(ListingRequest request) {
-		User owner = this.userRepository.findById(this.currentUser.id())
-			.orElseThrow(() -> new InvalidBearerTokenException("Token subject does not match an account"));
-		requireActive(owner);
+		User owner = this.userService.currentActiveUser();
 		String title = request.title().strip();
-		Listing listing = new Listing(owner, title, uniqueSlug(title), request.shortPitch().strip(),
+		String slug = uniqueSlug(title);
+		this.rateLimiter.acquire(RateLimitOperation.LISTING_CREATE, this.currentUser.id().toString());
+		Listing listing = new Listing(owner, title, slug, request.shortPitch().strip(),
 				request.description(), request.assetType(), request.marketplaceMode(), request.category(),
 				request.stage());
 		applyContent(listing, request);
@@ -131,12 +141,15 @@ public class ListingService {
 	/**
 	 * Replaces the editable content. The status and {@code publishedAt} are unchanged, so a
 	 * PUBLISHED listing stays public.
-	 * @throws ResponseStatusException 404 if not owned, 409 if ARCHIVED or SUSPENDED
+	 * @throws ResponseStatusException 403 for a suspended account, 404 if not owned, 409 if
+	 * ARCHIVED or SUSPENDED
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner edited too
+	 * often recently
 	 */
 	@Transactional
 	public ListingDetailResponse update(Long listingId, ListingRequest request) {
+		this.userService.currentActiveUser();
 		Listing listing = ownedListing(listingId);
-		requireActive(listing.getOwner());
 		transition(listing::requireEditable);
 		listing.setTitle(request.title().strip());
 		listing.setShortPitch(request.shortPitch().strip());
@@ -146,6 +159,7 @@ public class ListingService {
 		listing.setCategory(request.category());
 		listing.setStage(request.stage());
 		applyContent(listing, request);
+		this.rateLimiter.acquire(RateLimitOperation.LISTING_UPDATE, this.currentUser.id().toString());
 		// Flush so the response carries the updated timestamp.
 		this.listingRepository.saveAndFlush(listing);
 		return ListingDetailResponse.from(listing);
@@ -153,26 +167,37 @@ public class ListingService {
 
 	/**
 	 * DRAFT to PUBLISHED: the listing is public immediately, without any review.
-	 * @throws ResponseStatusException 404 if not owned, 409 unless DRAFT
+	 * @throws ResponseStatusException 403 for a suspended account, 404 if not owned, 409
+	 * unless DRAFT
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner published
+	 * too often recently
 	 */
 	@Transactional
 	public ListingDetailResponse publish(Long listingId) {
+		this.userService.currentActiveUser();
 		Listing listing = ownedListing(listingId);
-		requireActive(listing.getOwner());
 		transition(listing::publish);
+		this.rateLimiter.acquire(RateLimitOperation.LISTING_PUBLISH, this.currentUser.id().toString());
 		this.listingRepository.saveAndFlush(listing);
 		return ListingDetailResponse.from(listing);
 	}
 
 	/**
-	 * Soft delete: the row is kept with status ARCHIVED.
-	 * @throws ResponseStatusException 404 if not owned, 409 if SUSPENDED
+	 * Soft delete: the row is kept with status ARCHIVED. Archiving an already archived
+	 * listing does nothing (and does not count toward the rate limit).
+	 * @throws ResponseStatusException 403 for a suspended account, 404 if not owned, 409 if
+	 * SUSPENDED
+	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner archived too
+	 * often recently
 	 */
 	@Transactional
 	public void archive(Long listingId) {
+		this.userService.currentActiveUser();
 		Listing listing = ownedListing(listingId);
-		requireActive(listing.getOwner());
-		transition(listing::archive);
+		if (listing.getStatus() != ListingStatus.ARCHIVED) {
+			transition(listing::archive);
+			this.rateLimiter.acquire(RateLimitOperation.LISTING_ARCHIVE, this.currentUser.id().toString());
+		}
 	}
 
 	// ---- Helpers --------------------------------------------------------------------
@@ -206,13 +231,6 @@ public class ListingService {
 		}
 		throw new ResponseStatusException(HttpStatus.CONFLICT,
 				"A unique URL for this listing could not be generated. Please try again.");
-	}
-
-	// Suspended accounts may still read their listings but not change them.
-	private static void requireActive(User user) {
-		if (user.getStatus() != UserStatus.ACTIVE) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account is suspended.");
-		}
 	}
 
 	private static void transition(Runnable transition) {
