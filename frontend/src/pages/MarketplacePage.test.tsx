@@ -321,13 +321,14 @@ describe('Marketplace discovery', () => {
     expect(screen.queryByRole('button', { name: 'Clear search and filters' })).toBeNull()
   })
 
-  it('shows a server error with a working retry', async () => {
+  it('shows a server error without backend details, with a working retry', async () => {
     const { handlers } = mockApi({ [DEFAULT_QUERY]: () => problem(500, 'An unexpected error occurred.') })
     renderApp('/listings')
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain("We couldn't load listings")
-    expect(alert.textContent).toContain('An unexpected error occurred.')
+    expect(alert.textContent).toContain('Something went wrong. Please try again.')
+    expect(document.body.textContent).not.toContain('An unexpected error occurred.')
 
     handlers[DEFAULT_QUERY] = () => json(pageOf([LEDGERLY]))
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
@@ -336,7 +337,7 @@ describe('Marketplace discovery', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('passes unknown values to the backend and shows its validation error', async () => {
+  it('passes unknown values to the backend and explains its rejection in the app’s own words', async () => {
     const { requests } = mockApi({
       'GET /listings?assetType=APP&page=0&size=12': () =>
         problem(400, "Failed to convert 'assetType' with value: 'APP'"),
@@ -346,7 +347,8 @@ describe('Marketplace discovery', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain("Some search options aren't valid")
-    expect(alert.textContent).toContain("Failed to convert 'assetType' with value: 'APP'")
+    expect(alert.textContent).toContain("This link has search options the marketplace doesn't recognise.")
+    expect(document.body.textContent).not.toContain('Failed to convert')
     expect(requests[0].path).toBe('/listings?assetType=APP&page=0&size=12')
     // The unknown value stays visible in its control rather than silently changing.
     expect(select('Type').value).toBe('APP')
@@ -357,7 +359,7 @@ describe('Marketplace discovery', () => {
     expect(await screen.findByRole('heading', { level: 3, name: 'Ledgerly' })).toBeTruthy()
   })
 
-  it('shows field-level validation errors from the backend', async () => {
+  it('does not show the backend’s field-level validation wording', async () => {
     mockApi({
       'GET /listings?page=0&size=99': () =>
         problem(400, 'Invalid request content.', [{ field: 'size', message: 'must be less than or equal to 50' }]),
@@ -365,8 +367,10 @@ describe('Marketplace discovery', () => {
     renderApp('/listings?size=99')
 
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toContain('Invalid request content.')
-    expect(within(alert).getByRole('listitem').textContent).toBe('size must be less than or equal to 50')
+    expect(alert.textContent).toContain("Some search options aren't valid")
+    expect(within(alert).getByRole('link', { name: 'Reset search' }).getAttribute('href')).toBe('/listings')
+    expect(document.body.textContent).not.toContain('Invalid request content.')
+    expect(document.body.textContent).not.toContain('must be less than or equal to 50')
   })
 
   it('restores the whole query from a shared URL', async () => {

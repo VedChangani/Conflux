@@ -1,15 +1,14 @@
 import { useCallback } from 'react'
 import { Link, useParams } from 'react-router'
 import { paths } from '../app/paths'
-import { Button } from '../components/Button'
-import { ErrorMessage } from '../components/ErrorMessage'
+import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
+import { StatusPanel } from '../components/StatusPanel'
 import { useAuth } from '../features/auth/useAuth'
 import { profileApi } from '../features/profile/profileApi'
 import { ProfileView } from '../features/profile/ProfileView'
 import { isValidUsername } from '../features/profile/validation'
 import { ReportButton } from '../features/reports/ReportButton'
-import { loadErrorMessage } from '../lib/errors'
 import { useAsync } from '../lib/useAsync'
 import { ApiError } from '../services/apiClient'
 
@@ -33,6 +32,7 @@ export function PublicProfilePage() {
   if (result.status === 'loading') {
     return (
       <div className="profile-page">
+        <title>Loading profile… · Conflux</title>
         <Loading label="Loading profile…" />
       </div>
     )
@@ -43,27 +43,23 @@ export function PublicProfilePage() {
     const unavailable =
       result.error instanceof InvalidUsername || (result.error instanceof ApiError && result.error.status === 404)
     return unavailable ? (
-      <section className="not-found-panel">
-        <title>Profile not found · Conflux</title>
-        <p className="eyebrow">404</p>
-        <h1 className="page-title">Profile not found</h1>
-        <p className="lead">This profile doesn’t exist, or it isn’t available.</p>
-        <div className="button-row">
+      <StatusPanel
+        code="404"
+        title="Profile not found"
+        documentTitle="Profile not found"
+        actions={
           <Link to={paths.listings} className="button button-primary">
             Browse the marketplace
           </Link>
-        </div>
-      </section>
+        }
+      >
+        This profile doesn’t exist, or it isn’t available.
+      </StatusPanel>
     ) : (
       <div className="profile-page listing-error">
+        <title>Profile unavailable · Conflux</title>
         <h1 className="visually-hidden">Profile unavailable</h1>
-        <ErrorMessage title="We couldn’t load this profile" message={loadErrorMessage(result.error)}>
-          <div className="button-row">
-            <Button variant="secondary" onClick={result.retry}>
-              Try again
-            </Button>
-          </div>
-        </ErrorMessage>
+        <LoadError title="We couldn’t load this profile" error={result.error} onRetry={result.retry} />
       </div>
     )
   }

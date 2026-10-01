@@ -103,6 +103,21 @@ describe('Saved listings page', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('explains a rate limit in its own words, with a working retry', async () => {
+    const { handlers } = signedIn({ [FIRST_PAGE]: () => problem(429, LEAKY_DETAIL) })
+    renderApp('/saved')
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain("We couldn't load your saved listings")
+    expect(alert.textContent).toContain('Too many requests in a short time. Wait a moment, then try again.')
+    expect(document.body.textContent).not.toContain(LEAKY_DETAIL)
+
+    handlers[FIRST_PAGE] = () => json(pageOf([LEDGERLY]))
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByRole('heading', { level: 3, name: 'Ledgerly' })).toBeTruthy()
+  })
+
   it('paginates with the backend page metadata', async () => {
     const pageOne = Array.from({ length: 12 }, (_, i) => savedListing({ id: i + 1, slug: `a-${i}`, title: `A${i}` }))
     const pageTwo = Array.from({ length: 3 }, (_, i) => savedListing({ id: i + 20, slug: `b-${i}`, title: `B${i}` }))

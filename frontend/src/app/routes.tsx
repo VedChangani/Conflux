@@ -1,9 +1,12 @@
 import { Navigate, type RouteObject } from 'react-router'
 import { AppShell } from '../components/AppShell'
+import { AdminRoute } from '../features/admin/AdminRoute'
+import { ReportDetailRoute } from '../features/admin/ReportDetailPanel'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 import { ConnectionList } from '../features/connections/ConnectionList'
 import { ConversationForConnection } from '../features/messages/ConversationForConnection'
 import { ConversationView } from '../features/messages/ConversationView'
+import { AdminReportsIndex, AdminReportsPage } from '../pages/AdminReportsPage'
 import { ConnectionDetailPage } from '../pages/ConnectionDetailPage'
 import { ConnectionsPage } from '../pages/ConnectionsPage'
 import { HomePage } from '../pages/HomePage'
@@ -57,6 +60,21 @@ export const routes: RouteObject[] = [
               { index: true, element: <MessagesIndex /> },
               { path: `${paths.messages}/:id`, element: <ConversationView /> },
               { path: `${paths.messages}/connection/:connectionId`, element: <ConversationForConnection /> },
+            ],
+          },
+          {
+            // Active administrators only; everyone else signed in gets a 403 page.
+            element: <AdminRoute />,
+            children: [
+              { path: paths.admin, element: <Navigate to={paths.adminReports} replace /> },
+              {
+                path: paths.adminReports,
+                element: <AdminReportsPage />,
+                children: [
+                  { index: true, element: <AdminReportsIndex /> },
+                  { path: `${paths.adminReports}/:id`, element: <ReportDetailRoute /> },
+                ],
+              },
             ],
           },
         ],

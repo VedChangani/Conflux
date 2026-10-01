@@ -14,4 +14,7 @@ export const paths = {
   listing: (slug: string) => `/listings/${encodeURIComponent(slug)}`,
   profile: '/profile',
   user: (username: string) => `/users/${encodeURIComponent(username)}`,
+  admin: '/admin',
+  adminReports: '/admin/reports',
+  adminReport: (id: number) => `/admin/reports/${id}`,
 } as const

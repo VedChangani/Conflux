@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { paths } from '../app/paths'
-import { Button } from '../components/Button'
-import { ErrorMessage } from '../components/ErrorMessage'
+import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
+import { StatusPanel } from '../components/StatusPanel'
 import { useAuth } from '../features/auth/useAuth'
 import { ExpressInterest } from '../features/interest/ExpressInterest'
 import { ListingDetailView } from '../features/listings/ListingDetailView'
@@ -67,6 +67,7 @@ export function ListingDetailPage() {
         />
       ) : result.status === 'loading' ? (
         <div className="listing-detail-loading">
+          <title>Loading listing… · Conflux</title>
           <Loading label="Loading listing…" />
           <div className="listing-detail-skeleton" aria-hidden="true">
             <span className="skeleton skeleton-tag" />
@@ -76,30 +77,23 @@ export function ListingDetailPage() {
           </div>
         </div>
       ) : result.error instanceof ApiError && result.error.status === 404 ? (
-        <section className="not-found-panel">
-          <title>Listing not found · Conflux</title>
-          <p className="eyebrow">404</p>
-          <h1 className="page-title">Listing not found</h1>
-          <p className="lead">This listing doesn't exist, or it is no longer available on the marketplace.</p>
-          <div className="button-row">
+        <StatusPanel
+          code="404"
+          title="Listing not found"
+          documentTitle="Listing not found"
+          actions={
             <Link to={paths.listings} className="button button-primary">
               Browse the marketplace
             </Link>
-          </div>
-        </section>
+          }
+        >
+          This listing doesn't exist, or it is no longer available on the marketplace.
+        </StatusPanel>
       ) : (
         <div className="listing-error">
+          <title>Listing unavailable · Conflux</title>
           <h1 className="visually-hidden">Listing unavailable</h1>
-          <ErrorMessage
-            title="We couldn't load this listing"
-            message={result.error instanceof ApiError ? result.error.message : 'Something went wrong. Please try again.'}
-          >
-            <div className="button-row">
-              <Button variant="secondary" onClick={result.retry}>
-                Try again
-              </Button>
-            </div>
-          </ErrorMessage>
+          <LoadError title="We couldn't load this listing" error={result.error} onRetry={result.retry} />
         </div>
       )}
     </div>

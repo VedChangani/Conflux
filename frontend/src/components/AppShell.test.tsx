@@ -65,6 +65,23 @@ describe('AppShell navigation', () => {
     expect(await within(nav()).findByText('Ada Lovelace')).toBeTruthy()
   })
 
+  it('starts with a skip link that moves focus to the main content without changing the URL', async () => {
+    mockApi({ 'GET /listings?page=0&size=6': () => json({ content: [], page: 0, size: 6, totalElements: 0, totalPages: 0, first: true, last: true }) })
+    const router = renderApp('/')
+
+    const skip = screen.getByRole('link', { name: 'Skip to main content' })
+    // The first link in the page, ahead of the brand and the navigation.
+    expect(screen.getAllByRole('link')[0]).toBe(skip)
+    expect(skip.getAttribute('href')).toBe('#main-content')
+
+    fireEvent.click(skip)
+
+    const main = screen.getByRole('main')
+    expect(main.id).toBe('main-content')
+    await waitFor(() => expect(document.activeElement).toBe(main))
+    expect(router.state.location).toMatchObject({ pathname: '/', hash: '' })
+  })
+
   it('logs out: clears the session and returns to the login page', async () => {
     setAccessToken('stored-token')
     mockApi({ 'GET /auth/me': () => json(ACCOUNT) })

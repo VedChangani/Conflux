@@ -1,15 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { paths } from '../../app/paths'
-import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorMessage } from '../../components/ErrorMessage'
+import { LoadError } from '../../components/LoadError'
 import { useAsync } from '../../lib/useAsync'
 import { ApiError } from '../../services/apiClient'
 import type { PageResponse } from '../../types/api'
 import { useAuth } from '../auth/useAuth'
 import { Pagination } from '../listings/Pagination'
-import { loadErrorMessage } from './connectionErrors'
 import {
   readConnectionsQuery,
   toConnectionsApiSearch,
@@ -108,13 +107,7 @@ export function ConnectionList({ box }: { box: ConnectionBox }) {
           <div className="button-row">{showAll}</div>
         </ErrorMessage>
       ) : (
-        <ErrorMessage title="We couldn’t load your requests" message={loadErrorMessage(result.error)}>
-          <div className="button-row">
-            <Button variant="secondary" onClick={result.retry}>
-              Try again
-            </Button>
-          </div>
-        </ErrorMessage>
+        <LoadError title="We couldn’t load your requests" error={result.error} onRetry={result.retry} />
       )
   } else if (page === undefined) {
     body = <ConnectionListSkeleton />

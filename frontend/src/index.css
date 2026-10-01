@@ -262,19 +262,39 @@ mark {
   }
 }
 
-.page {
-  display: grid;
-  gap: 16px;
-}
-
-.page h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-}
-
 .session-check {
   max-width: 520px;
+}
+
+/* Focused by the skip link: a target, not a control, so no ring around the whole page. */
+.app-main:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Hidden until focused, then a solid tab over the header's top-left corner. */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  padding: 10px 16px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  text-decoration: none;
+  background: var(--accent);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hard-sm);
+  transform: translateY(calc(-100% - 16px));
+}
+
+.skip-link:focus-visible,
+.skip-link:focus {
+  color: var(--accent-ink);
+  transform: none;
+  box-shadow: var(--shadow-hard-sm), var(--focus-ring);
 }
 
 /* ---------- Buttons ---------- */
@@ -655,8 +675,12 @@ mark {
   white-space: nowrap;
 }
 
-/* Signed in on small screens: the sections get their own row, scrollable if they ever overflow. */
-@media (max-width: 639px) {
+/*
+ * Signed in, below desktop width: the sections get their own row under the brand and the
+ * account chip, wrapping onto a second line on the narrowest screens rather than hiding
+ * links behind a sideways scroll.
+ */
+@media (max-width: 1023px) {
   .app-nav[data-session='authenticated'] {
     flex-wrap: wrap;
     row-gap: 0;
@@ -665,10 +689,23 @@ mark {
   .app-nav[data-session='authenticated'] .app-nav-sections {
     order: 3;
     flex-basis: 100%;
+    flex-wrap: wrap;
+    row-gap: 2px;
     margin-inline: -10px;
     padding: 2px 0 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .app-nav[data-session='authenticated'] .app-nav-sections {
+    gap: 8px;
+  }
+}
+
+/* On phones that taller, two- or three-row header scrolls away instead of covering the page. */
+@media (max-width: 639px) {
+  .app-header:has(.app-nav[data-session='authenticated']) {
+    position: static;
   }
 }
 
@@ -1286,11 +1323,6 @@ mark {
 
 .empty-state .button-row {
   margin-top: 8px;
-}
-
-.error-list {
-  margin: 4px 0 0;
-  padding-left: 20px;
 }
 
 /* ---------- Pagination ---------- */
@@ -1933,6 +1965,7 @@ a.pagination-page:hover {
 
 .connections-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .connections-page > .page-header {
@@ -1980,12 +2013,11 @@ a.pagination-page:hover {
 
 .status-filters ul {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 0;
   padding: 0 0 2px;
-  overflow-x: auto;
   list-style: none;
-  scrollbar-width: none;
 }
 
 .status-filter {
@@ -2263,6 +2295,15 @@ a.pagination-page:hover {
   color: var(--paper);
   background: var(--danger);
   box-shadow: var(--shadow-hard-sm);
+}
+
+.button-danger:hover:focus-visible {
+  box-shadow: var(--shadow-hard-sm), var(--focus-ring);
+}
+
+.button-danger:active:not(:disabled) {
+  box-shadow: none;
+  transform: translate(2px, 2px);
 }
 
 /* ---------- Connection detail ---------- */
@@ -3417,5 +3458,520 @@ a.pagination-page:hover {
     transition:
       border-color 120ms ease,
       box-shadow 120ms ease;
+  }
+}
+
+/* ---------- Admin moderation ---------- */
+
+/* The nav entry carries a small lime diamond, so the admin area reads as a different place. */
+.app-nav-admin-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--highlight);
+  border: 1.5px solid var(--ink);
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.admin-page {
+  display: grid;
+  gap: 28px;
+}
+
+.admin-header {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.admin-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A short hazard stripe: restricted area. */
+.admin-eyebrow-mark {
+  flex: none;
+  width: 28px;
+  height: 10px;
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 3px, var(--highlight) 3px 7px);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+}
+
+.admin-workspace {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-detail {
+  min-width: 0;
+}
+
+/* Wide screens: the queue and the selected report side by side. */
+@media (min-width: 960px) {
+  .admin-workspace {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .report-back {
+    display: none;
+  }
+}
+
+/* Small screens: one pane at a time, as separate routes. */
+@media (max-width: 959px) {
+  .admin-workspace[data-pane='report'] .report-queue,
+  .admin-workspace[data-pane='queue'] .admin-detail {
+    display: none;
+  }
+}
+
+.report-queue {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.report-queue-toolbar {
+  align-items: flex-end;
+}
+
+.report-page-size {
+  min-width: 9.5rem;
+}
+
+.report-queue-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-row {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1.5px solid var(--line-input);
+  border-radius: var(--radius-lg);
+}
+
+/* Open reports: an ink frame and a heavy edge, on top of the "Open" badge. */
+.report-row[data-status='open'] {
+  border-color: var(--ink);
+  border-left-width: 6px;
+}
+
+.report-row:hover {
+  color: inherit;
+  border-color: var(--ink);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.report-row:focus-visible {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hard-sm), var(--focus-ring);
+}
+
+.report-row[aria-current='true'] {
+  border-color: var(--ink);
+  box-shadow: var(--shadow-hard);
+}
+
+/* The selected report points at its detail. */
+@media (min-width: 960px) {
+  .report-row[aria-current='true']::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -9px;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border: 1.5px solid var(--ink);
+    border-radius: 2px;
+    transform: translateY(-50%) rotate(45deg);
+  }
+}
+
+.report-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.report-row-id {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.report-row-reason {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.report-row-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.report-row-type {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-sm);
+}
+
+.report-row-target-id {
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.report-row-dates {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.report-row-skeleton {
+  gap: 10px;
+}
+
+.admin-badge[data-status='open'] {
+  background: var(--highlight-mark);
+}
+
+.admin-badge[data-status='resolved'],
+.admin-badge[data-status='active'],
+.admin-badge[data-status='published'] {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--success);
+}
+
+.admin-badge[data-status='suspended'] {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.admin-badge[data-status='dismissed'],
+.admin-badge[data-status='draft'],
+.admin-badge[data-status='archived'] {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--line-input);
+  border-style: dashed;
+}
+
+.report-panel {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  padding: 24px;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hard);
+}
+
+@media (max-width: 639px) {
+  .report-panel {
+    padding: 18px;
+  }
+}
+
+.report-panel.not-found-panel,
+.report-placeholder {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.report-placeholder {
+  justify-items: start;
+  gap: 8px;
+  color: var(--ink-soft);
+}
+
+.report-placeholder-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.report-detail-header {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.report-detail-title {
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.report-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 0.875rem;
+}
+
+/* The live region stays in place (so it announces) but takes no room while empty. */
+.report-outcome {
+  justify-self: start;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+
+.report-outcome:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+.report-section {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.report-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.0625rem;
+  font-weight: 800;
+}
+
+.report-section-title::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--ink);
+  border-radius: 1px;
+}
+
+.admin-facts {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.admin-facts > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+  gap: 4px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-facts dt {
+  padding-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-facts dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 479px) {
+  .admin-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.report-details {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--paper);
+  border-left: 4px solid var(--ink);
+  border-radius: var(--radius-sm);
+}
+
+.admin-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-person-text {
+  display: grid;
+  min-width: 0;
+}
+
+.admin-person-name {
+  font-weight: 700;
+}
+
+.admin-muted {
+  color: var(--muted);
+}
+
+.admin-mono {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.target-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.target-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.target-card-identity {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.target-card-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.target-card-pitch {
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.target-card-more summary {
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.target-card-more[open] summary {
+  margin-bottom: 8px;
+}
+
+.target-message {
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius) var(--radius) var(--radius) 0;
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.target-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.button-caution {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.button-caution:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.review-decision {
+  display: grid;
+  gap: 12px;
+}
+
+.moderation-consequence {
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .report-row {
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+}
+
+/* ---------- Accessibility safety nets ---------- */
+
+/*
+ * Windows High Contrast and other forced-colour modes drop box-shadows, which is how focus
+ * and the hard shadows are drawn. Give focus a real outline there.
+ */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+
+  .listing-card-link:focus-visible::after,
+  .connection-item-link:focus-visible::after {
+    outline: 2px solid CanvasText;
+  }
+
+  .skip-link {
+    border: 2px solid CanvasText;
+  }
+}
+
+/* Everything that moves is already opt-in; this catches anything added later. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

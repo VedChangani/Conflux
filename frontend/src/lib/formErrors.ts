@@ -18,10 +18,27 @@ export function fieldErrorsOf(error: unknown): FieldErrors {
   return result
 }
 
-/** A user-facing summary of a failed request. Never includes submitted values. */
+/**
+ * A user-facing summary of a failed login or registration. Never includes submitted values.
+ * Only the auth endpoints' own 401/409 explanations (wrong credentials; which of email or
+ * username is taken) are passed through; every other failure gets the app's own wording.
+ */
 export function errorMessageOf(error: unknown): string {
   if (error instanceof ApiError) {
-    return error.fieldErrors.length > 0 ? 'Please correct the highlighted fields.' : error.message
+    if (error.fieldErrors.length > 0) {
+      return 'Please correct the highlighted fields.'
+    }
+    switch (error.status) {
+      case 0:
+        return error.message
+      case 400:
+        return 'Some details weren’t accepted. Check the form and try again.'
+      case 401:
+      case 409:
+        return error.message
+      case 429:
+        return 'Too many attempts in a short time. Wait a few minutes, then try again.'
+    }
   }
   return 'Something went wrong. Please try again.'
 }

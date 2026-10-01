@@ -19,6 +19,7 @@ export function HomePage() {
 
   return (
     <div className="home">
+      <title>Conflux · Ideas, projects and startups</title>
       <section className="hero" aria-labelledby="home-heading">
         <h1 id="home-heading" className="hero-kicker">
           Conflux

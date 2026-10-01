@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { Button } from '../components/Button'
 import { ErrorMessage } from '../components/ErrorMessage'
 
 interface ErrorBoundaryProps {
@@ -25,9 +26,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <main className="app-main">
           <ErrorMessage message="The page failed to load. Reloading usually fixes this.">
-            <button type="button" onClick={() => window.location.reload()}>
-              Reload
-            </button>
+            <div className="button-row">
+              <Button variant="secondary" onClick={() => window.location.reload()}>
+                Reload
+              </Button>
+            </div>
           </ErrorMessage>
         </main>
       )

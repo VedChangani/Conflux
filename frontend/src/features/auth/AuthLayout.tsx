@@ -14,6 +14,7 @@ export function AuthLayout({ eyebrow, title, intro, children, footer }: AuthLayo
 
   return (
     <div className="auth-layout">
+      <title>{`${title} · Conflux`}</title>
       <aside className="auth-aside">
         <p className="eyebrow">The Conflux marketplace</p>
         <p className="auth-statement">

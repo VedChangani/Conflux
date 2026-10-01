@@ -1,11 +1,10 @@
 import { useCallback, useId, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { paths } from '../../app/paths'
-import { Button } from '../../components/Button'
-import { ErrorMessage } from '../../components/ErrorMessage'
+import { LoadError } from '../../components/LoadError'
 import { Loading } from '../../components/Loading'
+import { StatusPanel } from '../../components/StatusPanel'
 import { formatDateTime } from '../../lib/dates'
-import { loadErrorMessage } from '../../lib/errors'
 import { parseId } from '../../lib/ids'
 import { useAsync } from '../../lib/useAsync'
 import { ApiError } from '../../services/apiClient'
@@ -64,20 +63,17 @@ function ConversationScreen({ id }: { id: number | null }) {
       <div className="conversation">
         {backToList}
         {notFound ? (
-          <div className="not-found-panel conversation-missing">
-            <title>Conversation not found · Conflux</title>
-            <p className="eyebrow">404</p>
-            <h2 className="results-heading">Conversation not found</h2>
-            <p>This conversation doesn’t exist, or you’re not part of it.</p>
-          </div>
+          <StatusPanel
+            code="404"
+            title="Conversation not found"
+            documentTitle="Conversation not found"
+            headingLevel="h2"
+            className="conversation-missing"
+          >
+            This conversation doesn’t exist, or you’re not part of it.
+          </StatusPanel>
         ) : (
-          <ErrorMessage title="We couldn’t load this conversation" message={loadErrorMessage(result.error)}>
-            <div className="button-row">
-              <Button variant="secondary" onClick={result.retry}>
-                Try again
-              </Button>
-            </div>
-          </ErrorMessage>
+          <LoadError title="We couldn’t load this conversation" error={result.error} onRetry={result.retry} />
         )}
       </div>
     )

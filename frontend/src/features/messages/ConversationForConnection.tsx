@@ -1,10 +1,9 @@
 import { useCallback } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import { paths } from '../../app/paths'
-import { Button } from '../../components/Button'
-import { ErrorMessage } from '../../components/ErrorMessage'
+import { LoadError } from '../../components/LoadError'
 import { Loading } from '../../components/Loading'
-import { loadErrorMessage } from '../../lib/errors'
+import { StatusPanel } from '../../components/StatusPanel'
 import { parseId } from '../../lib/ids'
 import { useAsync } from '../../lib/useAsync'
 import { messagesApi } from './messagesApi'
@@ -34,13 +33,7 @@ export function ConversationForConnection() {
   if (result.status === 'error') {
     return (
       <div className="conversation">
-        <ErrorMessage title="We couldn’t open this conversation" message={loadErrorMessage(result.error)}>
-          <div className="button-row">
-            <Button variant="secondary" onClick={result.retry}>
-              Try again
-            </Button>
-          </div>
-        </ErrorMessage>
+        <LoadError title="We couldn’t open this conversation" error={result.error} onRetry={result.retry} />
       </div>
     )
   }
@@ -49,15 +42,20 @@ export function ConversationForConnection() {
   }
   return (
     <div className="conversation">
-      <div className="not-found-panel conversation-missing">
-        <h2 className="results-heading">No conversation found</h2>
-        <p>There’s no conversation for this connection. Conversations open once a request has been accepted.</p>
-        <div className="button-row">
+      <StatusPanel
+        code="Not available"
+        title="No conversation found"
+        documentTitle="No conversation found"
+        headingLevel="h2"
+        className="conversation-missing"
+        actions={
           <Link to={paths.messages} className="button button-secondary">
             All conversations
           </Link>
-        </div>
-      </div>
+        }
+      >
+        There’s no conversation for this connection. Conversations open once a request has been accepted.
+      </StatusPanel>
     </div>
   )
 }

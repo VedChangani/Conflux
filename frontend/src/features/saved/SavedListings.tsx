@@ -1,12 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { paths } from '../../app/paths'
-import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
-import { ErrorMessage } from '../../components/ErrorMessage'
+import { LoadError } from '../../components/LoadError'
 import { readPageParam } from '../../lib/pageParam'
 import { useAsync } from '../../lib/useAsync'
-import { ApiError } from '../../services/apiClient'
 import { withChanges } from '../listings/discoveryParams'
 import { ListingGrid, ListingGridSkeleton } from '../listings/ListingGrid'
 import { Pagination } from '../listings/Pagination'
@@ -71,22 +69,7 @@ export function SavedListings() {
 
   let body
   if (result.status === 'error') {
-    body = (
-      <ErrorMessage
-        title="We couldn't load your saved listings"
-        message={
-          result.error instanceof ApiError && result.error.status === 0
-            ? result.error.message
-            : 'Something went wrong. Please try again.'
-        }
-      >
-        <div className="button-row">
-          <Button variant="secondary" onClick={retry}>
-            Try again
-          </Button>
-        </div>
-      </ErrorMessage>
-    )
+    body = <LoadError title="We couldn't load your saved listings" error={result.error} onRetry={retry} />
   } else if (data === undefined || (visible.length === 0 && total > 0 && loading)) {
     body = <ListingGridSkeleton count={3} />
   } else if (total === 0) {

@@ -1,10 +1,8 @@
 import { useId } from 'react'
 import { Link, useLocation } from 'react-router'
 import { paths } from '../../app/paths'
-import { Button } from '../../components/Button'
-import { ErrorMessage } from '../../components/ErrorMessage'
+import { LoadError } from '../../components/LoadError'
 import { formatActivity } from '../../lib/dates'
-import { loadErrorMessage } from '../../lib/errors'
 import type { AsyncState } from '../../lib/useAsync'
 import type { PageResponse } from '../../types/api'
 import { initialOf } from '../listings/format'
@@ -32,15 +30,7 @@ export function ConversationSidebar({ result, page, hrefFor, activeId }: Convers
 
   let body
   if (result.status === 'error') {
-    body = (
-      <ErrorMessage title="We couldn’t load your conversations" message={loadErrorMessage(result.error)}>
-        <div className="button-row">
-          <Button variant="secondary" onClick={result.retry}>
-            Try again
-          </Button>
-        </div>
-      </ErrorMessage>
-    )
+    body = <LoadError title="We couldn’t load your conversations" error={result.error} onRetry={result.retry} />
   } else if (data === undefined) {
     body = (
       <div className="conversation-items" aria-hidden="true">

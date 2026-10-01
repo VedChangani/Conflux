@@ -1,16 +1,25 @@
 import { Link } from 'react-router'
-import { ErrorMessage } from '../components/ErrorMessage'
+import { StatusPanel } from '../components/StatusPanel'
 import { paths } from './paths'
 
 /** Router `errorElement`: shown when a route throws while rendering. */
 export function RouteError() {
   return (
     <main className="app-main">
-      <ErrorMessage message="This page could not be displayed.">
-        <Link to={paths.home} reloadDocument>
-          Go to the home page
-        </Link>
-      </ErrorMessage>
+      <div role="alert">
+        <StatusPanel
+          code="Error"
+          title="This page could not be displayed"
+          documentTitle="Something went wrong"
+          actions={
+            <Link to={paths.home} reloadDocument className="button button-primary">
+              Go to the home page
+            </Link>
+          }
+        >
+          Something went wrong while showing this page. Going back to the home page usually fixes it.
+        </StatusPanel>
+      </div>
     </main>
   )
 }

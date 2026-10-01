@@ -1,10 +1,9 @@
 import { useCallback } from 'react'
 import { Link } from 'react-router'
 import { paths } from '../../app/paths'
-import { Button } from '../../components/Button'
-import { ErrorMessage } from '../../components/ErrorMessage'
+import { EmptyState } from '../../components/EmptyState'
+import { LoadError } from '../../components/LoadError'
 import { useAsync } from '../../lib/useAsync'
-import { ApiError } from '../../services/apiClient'
 import { ListingGrid, ListingGridSkeleton } from './ListingGrid'
 import { listingsApi } from './listingsApi'
 
@@ -32,22 +31,9 @@ export function LatestListings() {
           <ListingGridSkeleton count={3} />
         </>
       ) : result.status === 'error' ? (
-        <ErrorMessage
-          title="We couldn't load the latest listings"
-          message={result.error instanceof ApiError ? result.error.message : 'Something went wrong. Please try again.'}
-        >
-          <div className="button-row">
-            <Button variant="secondary" onClick={result.retry}>
-              Try again
-            </Button>
-          </div>
-        </ErrorMessage>
+        <LoadError title="We couldn't load the latest listings" error={result.error} onRetry={result.retry} />
       ) : result.data.content.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-state-mark" aria-hidden="true" />
-          <h3 className="empty-state-title">No listings yet</h3>
-          <p className="empty-state-text">Published projects will appear here. Check back soon.</p>
-        </div>
+        <EmptyState title="No listings yet">Published projects will appear here. Check back soon.</EmptyState>
       ) : (
         <ListingGrid listings={result.data.content} />
       )}

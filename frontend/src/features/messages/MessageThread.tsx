@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '../../components/Button'
-import { ErrorMessage } from '../../components/ErrorMessage'
-import { loadErrorMessage } from '../../lib/errors'
+import { LoadError } from '../../components/LoadError'
 import { useAsync } from '../../lib/useAsync'
 import { MessageItem } from './MessageItem'
 import { MESSAGES_PAGE_SIZE, messagesApi } from './messagesApi'
@@ -84,13 +83,7 @@ export function MessageThread({ conversationId, accountId, recipientName, sent }
   if (newest.status === 'error') {
     return (
       <div className="message-thread">
-        <ErrorMessage title="We couldn’t load the messages" message={loadErrorMessage(newest.error)}>
-          <div className="button-row">
-            <Button variant="secondary" onClick={newest.retry}>
-              Try again
-            </Button>
-          </div>
-        </ErrorMessage>
+        <LoadError title="We couldn’t load the messages" error={newest.error} onRetry={newest.retry} />
       </div>
     )
   }

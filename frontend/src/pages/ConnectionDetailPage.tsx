@@ -1,11 +1,10 @@
 import { useCallback, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { paths } from '../app/paths'
-import { Button } from '../components/Button'
-import { ErrorMessage } from '../components/ErrorMessage'
+import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
+import { StatusPanel } from '../components/StatusPanel'
 import { useAuth } from '../features/auth/useAuth'
-import { loadErrorMessage } from '../features/connections/connectionErrors'
 import { ConnectionDetailView } from '../features/connections/ConnectionDetailView'
 import { connectionsApi } from '../features/connections/connectionsApi'
 import { roleOf } from '../features/connections/perspective'
@@ -65,6 +64,7 @@ export function ConnectionDetailPage() {
         <ConnectionDetailView connection={connection} onUpdated={setUpdated} />
       ) : result.status === 'loading' ? (
         <div className="listing-detail-loading">
+          <title>Loading request… · Conflux</title>
           <Loading label="Loading request…" />
           <div className="listing-detail-skeleton" aria-hidden="true">
             <span className="skeleton skeleton-tag" />
@@ -73,27 +73,23 @@ export function ConnectionDetailPage() {
           </div>
         </div>
       ) : notFound ? (
-        <section className="not-found-panel">
-          <title>Request not found · Conflux</title>
-          <p className="eyebrow">404</p>
-          <h1 className="page-title">Request not found</h1>
-          <p className="lead">This request doesn’t exist, or it isn’t one of yours.</p>
-          <div className="button-row">
+        <StatusPanel
+          code="404"
+          title="Request not found"
+          documentTitle="Request not found"
+          actions={
             <Link to={paths.connections} className="button button-primary">
               Go to connections
             </Link>
-          </div>
-        </section>
+          }
+        >
+          This request doesn’t exist, or it isn’t one of yours.
+        </StatusPanel>
       ) : (
         <div className="listing-error">
+          <title>Request unavailable · Conflux</title>
           <h1 className="visually-hidden">Request unavailable</h1>
-          <ErrorMessage title="We couldn’t load this request" message={loadErrorMessage(result.error)}>
-            <div className="button-row">
-              <Button variant="secondary" onClick={result.retry}>
-                Try again
-              </Button>
-            </div>
-          </ErrorMessage>
+          <LoadError title="We couldn’t load this request" error={result.error} onRetry={result.retry} />
         </div>
       )}
     </div>

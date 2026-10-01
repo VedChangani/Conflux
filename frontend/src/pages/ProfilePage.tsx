@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { paths } from '../app/paths'
 import { Button } from '../components/Button'
-import { ErrorMessage } from '../components/ErrorMessage'
+import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/Loading'
 import { useAuth } from '../features/auth/useAuth'
 import { profileApi } from '../features/profile/profileApi'
 import { ProfileForm } from '../features/profile/ProfileForm'
 import { ProfileView } from '../features/profile/ProfileView'
 import type { UserProfile } from '../features/profile/types'
-import { loadErrorMessage } from '../lib/errors'
 import { useAsync } from '../lib/useAsync'
 
 type Mode = 'view' | 'edit' | 'saved'
@@ -68,13 +67,7 @@ export function ProfilePage() {
       <div className="profile-page listing-error">
         <title>Your profile · Conflux</title>
         <h1 className="visually-hidden">Your profile</h1>
-        <ErrorMessage title="We couldn’t load your profile" message={loadErrorMessage(result.error)}>
-          <div className="button-row">
-            <Button variant="secondary" onClick={result.retry}>
-              Try again
-            </Button>
-          </div>
-        </ErrorMessage>
+        <LoadError title="We couldn’t load your profile" error={result.error} onRetry={result.retry} />
       </div>
     )
   }

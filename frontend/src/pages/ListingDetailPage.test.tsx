@@ -101,13 +101,14 @@ describe('Listing detail page', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('shows other failures with a working retry', async () => {
+  it('shows other failures without backend details, with a working retry', async () => {
     const { handlers } = mockApi({ [DETAIL]: () => problem(503, 'Service temporarily unavailable.') })
     renderApp('/listings/ledgerly')
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain("We couldn't load this listing")
-    expect(alert.textContent).toContain('Service temporarily unavailable.')
+    expect(alert.textContent).toContain('Something went wrong. Please try again.')
+    expect(document.body.textContent).not.toContain('Service temporarily unavailable.')
     expect(screen.queryByRole('heading', { name: 'Listing not found' })).toBeNull()
 
     handlers[DETAIL] = () => json(listingDetail())

@@ -1,5 +1,7 @@
+import { useRef, type MouseEvent } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { paths } from '../app/paths'
+import { isActiveAdmin } from '../features/admin/access'
 import { useAuth } from '../features/auth/useAuth'
 import { PendingRequestsProvider } from '../features/connections/PendingRequestsProvider'
 import { usePendingRequests } from '../features/connections/usePendingRequests'
@@ -14,10 +16,20 @@ import { Loading } from './Loading'
  */
 export function AppShell() {
   const { status, verificationFailed, retryVerification, logout } = useAuth()
+  const mainRef = useRef<HTMLElement>(null)
+
+  // Moves focus (which also scrolls) rather than following the #hash, so the URL and router state stay as they are.
+  function skipToContent(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault()
+    mainRef.current?.focus()
+  }
 
   return (
     <PendingRequestsProvider>
       <div className="app-shell">
+        <a href="#main-content" className="skip-link" onClick={skipToContent}>
+          Skip to main content
+        </a>
         <header className="app-header">
           <nav className="app-nav" aria-label="Main" data-session={status}>
             <Link to={paths.home} className="app-brand">
@@ -28,7 +40,7 @@ export function AppShell() {
             <AccountNav />
           </nav>
         </header>
-        <main className="app-main">
+        <main ref={mainRef} id="main-content" className="app-main" tabIndex={-1}>
           {status !== 'unverified' ? (
             <SavedListingsProvider>
               <Outlet />
@@ -56,9 +68,12 @@ export function AppShell() {
   )
 }
 
-/** The app's sections. Signed-in users also get their saved listings, connections and messages. */
+/**
+ * The app's sections. Signed-in users also get their saved listings, connections and messages;
+ * active administrators also get the moderation area.
+ */
 function SectionNav() {
-  const { status } = useAuth()
+  const { status, account } = useAuth()
   const { count } = usePendingRequests()
 
   return (
@@ -86,6 +101,12 @@ function SectionNav() {
           <NavLink to={paths.messages} className="app-nav-link">
             Messages
           </NavLink>
+          {isActiveAdmin(account) && (
+            <NavLink to={paths.admin} className="app-nav-link app-nav-admin">
+              <span className="app-nav-admin-mark" aria-hidden="true" />
+              Moderation
+            </NavLink>
+          )}
         </>
       )}
     </div>

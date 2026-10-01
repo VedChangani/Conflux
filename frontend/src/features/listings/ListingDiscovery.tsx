@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorMessage } from '../../components/ErrorMessage'
+import { LoadError } from '../../components/LoadError'
 import { SelectField } from '../../components/SelectField'
 import { useAsync } from '../../lib/useAsync'
 import { ApiError } from '../../services/apiClient'
@@ -182,16 +183,10 @@ function Results({ page, query, loading, linkState, onClearFilters, hrefFor, onN
 function DiscoveryError({ error, onRetry, resetHref }: { error: unknown; onRetry: () => void; resetHref: string }) {
   if (error instanceof ApiError && error.status === 400) {
     return (
-      <ErrorMessage title="Some search options aren't valid" message={error.message}>
-        {error.fieldErrors.length > 0 && (
-          <ul className="error-list">
-            {error.fieldErrors.map((fieldError) => (
-              <li key={`${fieldError.field}:${fieldError.message}`}>
-                <strong>{fieldError.field}</strong> {fieldError.message}
-              </li>
-            ))}
-          </ul>
-        )}
+      <ErrorMessage
+        title="Some search options aren't valid"
+        message="This link has search options the marketplace doesn't recognise. Change them above, or reset the search."
+      >
         <div className="button-row">
           <Link to={resetHref} className="button button-secondary">
             Reset search
@@ -200,16 +195,5 @@ function DiscoveryError({ error, onRetry, resetHref }: { error: unknown; onRetry
       </ErrorMessage>
     )
   }
-  return (
-    <ErrorMessage
-      title="We couldn't load listings"
-      message={error instanceof ApiError ? error.message : 'Something went wrong. Please try again.'}
-    >
-      <div className="button-row">
-        <Button variant="secondary" onClick={onRetry}>
-          Try again
-        </Button>
-      </div>
-    </ErrorMessage>
-  )
+  return <LoadError title="We couldn't load listings" error={error} onRetry={onRetry} />
 }
