@@ -136,3 +136,72 @@ describe('Listing detail page', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeTruthy()
   })
 })
+
+describe('Listing detail page for the listing’s owner', () => {
+  const OWN = { id: ACCOUNT.id, username: ACCOUNT.username, displayName: ACCOUNT.displayName }
+  const panel = () => within(screen.getByRole('complementary', { name: 'Listing summary' }))
+
+  function signedIn(handlers: Parameters<typeof mockApi>[0]) {
+    setAccessToken('stored-token')
+    return mockApi({
+      'GET /auth/me': () => json(ACCOUNT),
+      'GET /saved-listings?page=0&size=50': () => json(pageOf([], { size: 50 })),
+      ...handlers,
+    })
+  }
+
+  it('shows the owner no Express interest action, and a link to manage the listing', async () => {
+    const { requests } = signedIn({ [DETAIL]: () => json(listingDetail({ owner: OWN })) })
+    renderApp('/listings/ledgerly')
+
+    await screen.findByRole('heading', { level: 1, name: 'Ledgerly' })
+    expect(panel().getByText('This is your listing.')).toBeTruthy()
+    expect(panel().queryByRole('button', { name: /express interest/i })).toBeNull()
+    expect(panel().getByRole('link', { name: 'Manage this listing' }).getAttribute('href')).toBe('/my-listings/1')
+    expect(requests.some((request) => request.path.endsWith('/interest'))).toBe(false)
+  })
+
+  it('takes the owner to the protected management page, which loads the private listing', async () => {
+    const { requests } = signedIn({
+      [DETAIL]: () => json(listingDetail({ owner: OWN })),
+      'GET /listings/mine/1': () => json(listingDetail({ owner: OWN, status: 'PUBLISHED' })),
+    })
+    const router = renderApp('/listings/ledgerly')
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Manage this listing' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/my-listings/1'))
+    expect(await screen.findByRole('complementary', { name: 'Listing status' })).toBeTruthy()
+    expect(requests.find((request) => request.path === '/listings/mine/1')?.headers.get('Authorization')).toBe(
+      'Bearer stored-token',
+    )
+  })
+
+  it('still offers Express interest, and no management link, to other members', async () => {
+    signedIn({ [DETAIL]: () => json(listingDetail()) })
+    renderApp('/listings/ledgerly')
+
+    await screen.findByRole('heading', { level: 1, name: 'Ledgerly' })
+    expect(panel().getByRole('button', { name: 'Express interest' })).toBeTruthy()
+    expect(panel().queryByText('This is your listing.')).toBeNull()
+    expect(panel().queryByRole('link', { name: 'Manage this listing' })).toBeNull()
+  })
+
+  it('shows anonymous visitors no management link', async () => {
+    mockApi({ [DETAIL]: () => json(listingDetail()) })
+    renderApp('/listings/ledgerly')
+
+    await screen.findByRole('heading', { level: 1, name: 'Ledgerly' })
+    expect(panel().getByRole('button', { name: 'Log in to express interest' })).toBeTruthy()
+    expect(panel().queryByRole('link', { name: 'Manage this listing' })).toBeNull()
+  })
+
+  it('keeps the management page protected for anonymous visitors', async () => {
+    const { requests } = mockApi({})
+    const router = renderApp('/my-listings/1')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Log in' })).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/login')
+    expect(requests.some((request) => request.path.startsWith('/listings/mine'))).toBe(false)
+  })
+})

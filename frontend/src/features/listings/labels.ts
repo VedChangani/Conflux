@@ -9,7 +9,15 @@ import {
   type ListingMarketplaceMode,
   type ListingSort,
   type ListingStage,
+  type ListingStatus,
 } from './types'
+
+export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
+  DRAFT: 'Draft',
+  PUBLISHED: 'Published',
+  ARCHIVED: 'Archived',
+  SUSPENDED: 'Suspended',
+}
 
 export const ASSET_TYPE_LABELS: Record<ListingAssetType, string> = {
   IDEA: 'Idea',

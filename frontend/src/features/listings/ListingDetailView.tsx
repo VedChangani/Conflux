@@ -103,7 +103,7 @@ export function ListingDetailView({ listing, actions }: { listing: ListingDetail
   )
 }
 
-function DetailSection({ title, text }: { title: string; text: string }) {
+export function DetailSection({ title, text }: { title: string; text: string }) {
   const headingId = useId()
   const paragraphs = text
     .split(/\n\s*\n/)

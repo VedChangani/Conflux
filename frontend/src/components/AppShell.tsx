@@ -74,6 +74,9 @@ function SectionNav() {
       </NavLink>
       {status === 'authenticated' && (
         <>
+          <NavLink to={paths.myListings} className="app-nav-link">
+            My listings
+          </NavLink>
           <NavLink to={paths.saved} className="app-nav-link">
             Saved
           </NavLink>

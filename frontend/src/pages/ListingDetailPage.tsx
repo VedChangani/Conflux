@@ -48,6 +48,11 @@ export function ListingDetailPage() {
           actions={
             <>
               <ExpressInterest listing={result.data} />
+              {account?.id === result.data.owner.id && (
+                <Link to={paths.myListing(result.data.id)} className="button button-secondary button-block">
+                  Manage this listing
+                </Link>
+              )}
               <SaveButton listingId={result.data.id} block />
               {account?.id !== result.data.owner.id && (
                 <ReportButton
