@@ -2,7 +2,6 @@ import type { ListingCard } from './types'
 
 const LOCALE = 'en-US'
 
-/** e.g. `$25,000` or `€1,250.50`. Falls back to `25,000 XYZ` for codes Intl does not know. */
 export function formatPrice(amount: number, currency: string): string {
   const fractionDigits = Number.isInteger(amount) ? 0 : 2
   try {
@@ -22,17 +21,11 @@ export function formatPrice(amount: number, currency: string): string {
 }
 
 export interface PriceSummary {
-  /** The headline, e.g. `$25,000`, `Free` or `Price on request`. */
   value: string
-  /** Whether `value` is an actual amount (rather than a description). */
   priced: boolean
   negotiable: boolean
 }
 
-/**
- * How a listing's price is presented. An asking price always comes with a currency;
- * without one, acquisitions are "on request" and collaborations have no price at all.
- */
 export function priceSummary(listing: Pick<ListingCard, 'askingPrice' | 'currency' | 'priceNegotiable' | 'marketplaceMode'>): PriceSummary {
   const { askingPrice, currency, priceNegotiable, marketplaceMode } = listing
   if (askingPrice !== null && currency !== null) {
@@ -49,7 +42,6 @@ export function priceSummary(listing: Pick<ListingCard, 'askingPrice' | 'currenc
   }
 }
 
-/** e.g. `Jan 15, 2026`, in the viewer's time zone. */
 export function formatDate(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) {

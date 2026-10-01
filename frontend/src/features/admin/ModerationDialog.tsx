@@ -11,32 +11,18 @@ const numberFormat = new Intl.NumberFormat('en-US')
 interface ModerationDialogProps {
   action: AdminAction
   title: string
-  /** What confirming will do. */
   children: ReactNode
   confirmLabel: string
   runningLabel: string
-  /** Suspensions use the danger style; everything else the primary one. */
   danger?: boolean
-  /** Offer the optional resolution note (report decisions only). */
   withNote?: boolean
-  /** Runs the request; rejects with the API error. The note is passed as typed. */
   onConfirm: (note: string) => Promise<void>
-  /** After a successful request. The caller closes the dialog. */
   onDone: () => void
-  /**
-   * The report or its target changed elsewhere (404/409): read it again. Called as the dialog
-   * closes, so the explanation isn't swept away by the refreshed panel.
-   */
   onStale: () => void
   onClose: () => void
   returnFocusRef?: RefObject<HTMLElement | null>
 }
 
-/**
- * The confirmation step for every moderation action: what will happen, an optional note,
- * and Confirm. One request at a time; while it runs the dialog can't be dismissed. Errors
- * that a retry can fix keep the form; the others replace it with the explanation.
- */
 export function ModerationDialog({
   action,
   title,
@@ -56,7 +42,6 @@ export function ModerationDialog({
   const [noteError, setNoteError] = useState<string | undefined>(undefined)
   const [error, setError] = useState<AdminActionError | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  // A ref as well as state: a second submit can arrive before the disabled button renders.
   const submittingRef = useRef(false)
   const mounted = useRef(true)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -71,7 +56,6 @@ export function ModerationDialog({
     }
   }, [])
 
-  // The form was replaced by a final explanation: focus its button.
   useEffect(() => {
     if (final) {
       closeRef.current?.focus()
@@ -104,7 +88,6 @@ export function ModerationDialog({
       }
       const result = adminActionError(caught, action)
       if (result.kind === 'unauthorized') {
-        // The session has ended; the protected route sends the user to log in.
         onClose()
         return
       }
@@ -117,7 +100,6 @@ export function ModerationDialog({
       }
       setError(result)
       if (result.kind === 'forbidden') {
-        // The account may have lost its admin role: the admin area then closes itself.
         void refreshAccount()
       }
       if (result.refresh) {

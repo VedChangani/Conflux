@@ -10,25 +10,17 @@ function formatMemberSince(iso: string): string {
   return Number.isNaN(date.getTime()) ? '' : memberSince.format(date)
 }
 
-/** `https://github.com/ada/` → `github.com/ada`: the scheme adds nothing for people reading. */
 function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
 }
 
 interface ProfileViewProps {
   profile: UserProfile
-  /** The signed-in user's own profile: empty fields invite them to fill them in. */
   isOwn?: boolean
-  /** Buttons or links next to the name, e.g. "Edit profile". */
   actions?: ReactNode
-  /** Shown under the header, e.g. a "saved" confirmation. */
   notice?: ReactNode
 }
 
-/**
- * A profile with exactly the public fields the backend returns: name, username, bio,
- * location, links and when the account was created. The id is never shown.
- */
 export function ProfileView({ profile, isOwn = false, actions, notice }: ProfileViewProps) {
   const nameId = useId()
   const aboutId = useId()
@@ -93,7 +85,6 @@ export function ProfileView({ profile, isOwn = false, actions, notice }: Profile
                 <div key={label}>
                   <dt>{label}</dt>
                   <dd>
-                    {/* Shown as a link only if it is the http(s) URL the backend promises. */}
                     {isHttpUrl(url) ? (
                       <a href={url} target="_blank" rel="noopener noreferrer nofollow ugc">
                         {displayUrl(url)}

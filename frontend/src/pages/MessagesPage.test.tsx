@@ -74,7 +74,6 @@ describe('Conversations list', () => {
     expect(sidebar().getByRole('status').textContent).toBe('Loading conversations…')
     expect(screen.getByRole('region', { name: 'Conversations' }).getAttribute('aria-busy')).toBe('true')
 
-    // Alice's conversation has the older activity but comes first: the order is the backend's.
     response.resolve(json(pageOf([ALICE_CHAT, conversation()], { size: 20 })))
 
     const links = await (await findSidebar()).findAllByRole('link', { name: /, / })
@@ -88,14 +87,12 @@ describe('Conversations list', () => {
     expect(links[1].querySelector('time')?.getAttribute('datetime')).toBe('2026-03-03T10:00:00Z')
     expect(links[1].getAttribute('href')).toBe('/messages/31')
 
-    // Without messages: no preview, and the activity time is when the conversation started.
     expect(within(links[0]).getByText('No messages yet')).toBeTruthy()
     expect(links[0].querySelector('time')?.getAttribute('datetime')).toBe('2026-02-20T08:00:00Z')
 
     expect(requests.find((request) => request.path === '/conversations?page=0&size=20')?.headers.get('Authorization')).toBe(
       'Bearer stored-token',
     )
-    // No ids or private fields are rendered.
     const text = screen.getByRole('region', { name: 'Conversations' }).textContent ?? ''
     expect(text).not.toContain('31')
     expect(text).not.toContain(ACCOUNT.email)
@@ -156,7 +153,6 @@ describe('Conversations list', () => {
     expect(await (await findSidebar()).findByRole('link', { name: 'Alice Anders, Ledgerly' })).toBeTruthy()
     expect(router.state.location.search).toBe('?page=2')
     expect(requests.at(-1)?.path).toBe('/conversations?page=1&size=20')
-    // Opening a conversation keeps the list on its page.
     expect(sidebar().getByRole('link', { name: 'Alice Anders, Ledgerly' }).getAttribute('href')).toBe('/messages/32?page=2')
   })
 
@@ -191,7 +187,6 @@ describe('Messages layout', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Bob Brown' })).toBeTruthy()
     expect(router.state.location.pathname).toBe('/messages/31')
-    // Small screens show only the conversation, with a way back to the list.
     expect(layout()?.getAttribute('data-pane')).toBe('conversation')
     expect(sidebar().getByRole('link', { name: 'Bob Brown, Pairwise' }).getAttribute('aria-current')).toBe('page')
     expect(sidebar().getByRole('link', { name: 'Alice Anders, Ledgerly' }).getAttribute('aria-current')).toBeNull()
@@ -220,10 +215,8 @@ describe('From a connection to its conversation', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Bob Brown' })).toBeTruthy()
     expect(router.state.location.pathname).toBe('/messages/31')
-    // Found by its connection id across the user's own conversations.
     expect(requests.filter((request) => request.path.endsWith('size=50') && request.path.startsWith('/conversations?'))).toHaveLength(2)
 
-    // The lookup step is replaced, so "back" does not return to it.
     await router.navigate(-1)
     await waitFor(() => expect(router.state.location.pathname).toBe('/connections/21'))
   })

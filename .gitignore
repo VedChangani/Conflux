@@ -1,0 +1,5 @@
+# Local environment files hold real credentials (DB password, JWT secret): never commit them.
+# backend/ and frontend/ have their own rules; this covers the repository root.
+.env
+.env.*
+!.env.example

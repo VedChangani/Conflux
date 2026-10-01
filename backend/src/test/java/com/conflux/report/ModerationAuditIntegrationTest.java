@@ -44,14 +44,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * The moderation audit log over HTTP: full context, real security filter chain,
- * Flyway-migrated H2 database. Same cast as {@link TrustAndSafetyIntegrationTest}: Alice is
- * ADMIN (Zoe is a second admin); Bob and Charlie are users; Dave is suspended. Bob has a
- * published and a draft listing; Charlie has a published one. Charlie's interest in Bob's
- * listing is accepted and Bob has sent a message. Nothing is moderated during setup, so the
- * log starts empty.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -148,8 +140,6 @@ class ModerationAuditIntegrationTest {
 		}
 	}
 
-	// ---- Audit creation ------------------------------------------------------------------
-
 	@Test
 	void successfulUserSuspensionCreatesExactlyOneSuspendUserAction() throws Exception {
 		Instant before = Instant.now().truncatedTo(ChronoUnit.MICROS);
@@ -172,7 +162,6 @@ class ModerationAuditIntegrationTest {
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
-		// createdAt is set by the server, in UTC, and matches the stored value.
 		Instant createdAt = Instant.parse(JsonPath.read(response, "$.content[0].createdAt"));
 		assertThat(createdAt).isBetween(before, after);
 		assertThat(this.jdbc.queryForObject("SELECT created_at FROM moderation_actions", LocalDateTime.class))
@@ -198,7 +187,6 @@ class ModerationAuditIntegrationTest {
 		assertThat(actionTypes()).containsExactlyInAnyOrder("SUSPEND_USER", "SUSPEND_LISTING", "RESTORE_USER",
 				"RESTORE_LISTING");
 
-		// Already in the requested state: 204 as before, nothing recorded.
 		perform(post(ADMIN + "/users/" + this.charlie.getId() + "/restore"), this.aliceToken)
 			.andExpect(status().isNoContent());
 		perform(post(ADMIN + "/listings/" + this.bobPublished + "/restore"), this.aliceToken)
@@ -270,7 +258,6 @@ class ModerationAuditIntegrationTest {
 				.containsEntry("note", "Valid report; owner contacted."));
 		audit("").andExpect(jsonPath("$.content[0].reportId").value(report))
 			.andExpect(jsonPath("$.content[0].note").value("Valid report; owner contacted."));
-		// The report itself was reviewed by the same admin.
 		assertThat(this.jdbc.queryForObject("SELECT reviewed_by FROM reports WHERE id = ?", Long.class, report))
 			.isEqualTo(this.alice.getId());
 	}
@@ -308,7 +295,6 @@ class ModerationAuditIntegrationTest {
 		perform(post(ADMIN_REPORTS + "/" + reviewed + "/dismiss"), this.aliceToken).andExpect(status().isOk());
 		assertThat(auditCount()).isEqualTo(1);
 
-		// 404, 409 and 400 from an administrator.
 		for (String action : new String[] { "suspend", "restore" }) {
 			perform(post(ADMIN + "/users/999999999/" + action), this.aliceToken).andExpect(status().isNotFound());
 			perform(post(ADMIN + "/listings/999999999/" + action), this.aliceToken).andExpect(status().isNotFound());
@@ -326,8 +312,6 @@ class ModerationAuditIntegrationTest {
 			.content(JSON.writeValueAsString(Map.of("resolutionNote", "n".repeat(1_001)))), this.aliceToken)
 			.andExpect(status().isBadRequest());
 
-		// 403 and 401: normal users, anonymous callers, a suspended admin.
-		// (Fresh request builders each time: perform() adds the Authorization header to them.)
 		Supplier<List<MockHttpServletRequestBuilder>> operations = () -> List.of(
 				post(ADMIN + "/users/" + this.charlie.getId() + "/suspend"),
 				post(ADMIN + "/users/" + this.dave.getId() + "/restore"),
@@ -381,14 +365,11 @@ class ModerationAuditIntegrationTest {
 		assertThat(this.jdbc.queryForList("SELECT created_at FROM moderation_actions", LocalDateTime.class))
 			.allSatisfy(createdAt -> assertThat(createdAt).isAfter(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5)));
 
-		// And there is no way to write an entry directly.
 		perform(post(AUDIT).contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsString(forged)),
 				this.aliceToken)
 			.andExpect(status().isMethodNotAllowed());
 		assertThat(auditCount()).isEqualTo(2);
 	}
-
-	// ---- Atomicity ---------------------------------------------------------------------------
 
 	@Test
 	void failedAuditInsertRollsBackTheUserSuspension() throws Exception {
@@ -448,14 +429,11 @@ class ModerationAuditIntegrationTest {
 		}
 		assertThat(auditCount()).isZero();
 
-		// Once inserts work again, the same reviews succeed and are recorded.
 		this.jdbc.execute("ALTER TABLE moderation_actions DROP CONSTRAINT " + REJECT_AUDIT_INSERTS);
 		perform(post(ADMIN_REPORTS + "/" + resolve + "/resolve"), this.aliceToken).andExpect(status().isOk());
 		perform(post(ADMIN_REPORTS + "/" + dismiss + "/dismiss"), this.aliceToken).andExpect(status().isOk());
 		assertThat(actionTypes()).containsExactlyInAnyOrder("RESOLVE_REPORT", "DISMISS_REPORT");
 	}
-
-	// ---- Audit queries -----------------------------------------------------------------------
 
 	@Test
 	void onlyActiveAdminsCanReadTheLog() throws Exception {
@@ -472,7 +450,6 @@ class ModerationAuditIntegrationTest {
 			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		this.mockMvc.perform(get(AUDIT).header(HttpHeaders.AUTHORIZATION, "Bearer not-a-token"))
 			.andExpect(status().isUnauthorized());
-		// A token minted while admin stops working once demoted or suspended.
 		this.jdbc.update("UPDATE users SET role = 'USER' WHERE id = ?", this.zoe.getId());
 		perform(get(AUDIT), this.zoeToken).andExpect(status().isForbidden());
 		this.jdbc.update("UPDATE users SET role = 'ADMIN', status = 'SUSPENDED' WHERE id = ?", this.zoe.getId());
@@ -490,7 +467,7 @@ class ModerationAuditIntegrationTest {
 		Instant base = Instant.parse("2026-10-01T08:00:00Z");
 		setCreatedAt(a, base.plusSeconds(60));
 		setCreatedAt(b, base);
-		setCreatedAt(c, base.plusSeconds(60)); // same as a: higher id first
+		setCreatedAt(c, base.plusSeconds(60));
 		setCreatedAt(d, base.plusSeconds(120));
 		setCreatedAt(e, base.minusSeconds(60));
 
@@ -525,30 +502,25 @@ class ModerationAuditIntegrationTest {
 		long reportResolved = this.jdbc.queryForObject("SELECT id FROM moderation_actions WHERE report_id = ?",
 				Long.class, report);
 
-		// actionType
 		assertThat(ids(audit("actionType=SUSPEND_USER"))).containsExactly(bobSuspended);
 		assertThat(ids(audit("actionType=RESTORE_USER"))).containsExactlyInAnyOrder(bobRestored, daveRestored);
 		assertThat(ids(audit("actionType=SUSPEND_LISTING"))).containsExactlyInAnyOrder(listingSuspended,
 				charlieListingSuspended);
 		assertThat(ids(audit("actionType=RESOLVE_REPORT"))).containsExactly(reportResolved);
 		assertThat(ids(audit("actionType=DISMISS_REPORT"))).isEmpty();
-		// targetType
 		assertThat(ids(audit("targetType=USER"))).containsExactlyInAnyOrder(bobSuspended, bobRestored, daveRestored,
 				reportResolved);
 		assertThat(ids(audit("targetType=LISTING"))).containsExactlyInAnyOrder(listingSuspended,
 				charlieListingSuspended);
 		assertThat(ids(audit("targetType=MESSAGE"))).isEmpty();
-		// targetId
 		assertThat(ids(audit("targetId=" + this.bob.getId()))).containsExactlyInAnyOrder(bobSuspended, bobRestored,
 				reportResolved);
 		assertThat(ids(audit("targetId=" + this.charliePublished))).containsExactly(charlieListingSuspended);
-		// actorId
 		assertThat(ids(audit("actorId=" + this.alice.getId()))).containsExactlyInAnyOrder(bobSuspended, bobRestored,
 				listingSuspended);
 		assertThat(ids(audit("actorId=" + this.zoe.getId()))).containsExactlyInAnyOrder(charlieListingSuspended,
 				daveRestored, reportResolved);
 		assertThat(ids(audit("actorId=" + this.bob.getId()))).isEmpty();
-		// Combined (AND)
 		assertThat(ids(audit("targetType=USER&targetId=" + this.bob.getId() + "&actorId=" + this.alice.getId())))
 			.containsExactlyInAnyOrder(bobSuspended, bobRestored);
 		assertThat(ids(audit("actionType=RESOLVE_REPORT&targetType=USER&targetId=" + this.bob.getId() + "&actorId="
@@ -568,7 +540,6 @@ class ModerationAuditIntegrationTest {
 			audit(query).andExpect(status().isBadRequest())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		}
-		// An empty value means "not supplied", as for the report queue's status filter.
 		audit("actionType=").andExpect(status().isOk());
 	}
 
@@ -580,8 +551,6 @@ class ModerationAuditIntegrationTest {
 		directAction("/users/" + this.bob.getId() + "/suspend");
 		audit("targetId=999999999").andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
 	}
-
-	// ---- Data exposure -------------------------------------------------------------------------
 
 	@Test
 	void entriesContainOnlyTheDocumentedFieldsAndAnActorSummary() throws Exception {
@@ -603,7 +572,6 @@ class ModerationAuditIntegrationTest {
 			assertThat(entry.get("actor").get("id").asLong()).isEqualTo(this.alice.getId());
 			assertThat(entry.get("actor").get("username").asString()).isEqualTo("alice");
 			assertThat(entry.get("actor").get("displayName").asString()).isEqualTo("Alice Admin");
-			// The report is a reference, not an embedded entity.
 			assertThat(entry.get("reportId").isObject()).isFalse();
 		});
 		assertThat(response).doesNotContain("@example.com")
@@ -616,8 +584,6 @@ class ModerationAuditIntegrationTest {
 			.doesNotContain("reporter")
 			.doesNotContain("eyJ");
 	}
-
-	// ---- Immutability ---------------------------------------------------------------------------
 
 	@Test
 	void thereIsNoWayToChangeOrDeleteEntries() throws Exception {
@@ -634,7 +600,6 @@ class ModerationAuditIntegrationTest {
 			perform(request.contentType(MediaType.APPLICATION_JSON).content(body), this.aliceToken)
 				.andExpect(status().is(anyOf(is(404), is(405))));
 		}
-		// Normal users and anonymous callers are stopped before any of that.
 		perform(delete(AUDIT + "/" + id), this.bobToken).andExpect(status().isForbidden());
 		this.mockMvc.perform(delete(AUDIT + "/" + id)).andExpect(status().isUnauthorized());
 
@@ -667,11 +632,8 @@ class ModerationAuditIntegrationTest {
 		assertThat(ids(audit("targetType=USER&targetId=" + this.bob.getId()))).hasSize(4).endsWith(first);
 	}
 
-	// ---- Regression ----------------------------------------------------------------------------
-
 	@Test
 	void selfServiceActionsAndReportsAreNeverAudited() throws Exception {
-		// Publishing is immediate and needs no approval; reporting moderates and records nothing.
 		long listing = published(this.charlieToken, "Charlie's second idea");
 		perform(get(LISTINGS + "/" + slugOf(listing)), null).andExpect(status().isOk());
 		perform(delete(LISTINGS + "/" + listing), this.charlieToken).andExpect(status().isNoContent());
@@ -685,10 +647,7 @@ class ModerationAuditIntegrationTest {
 		assertThat(auditCount()).isZero();
 	}
 
-	// ---- Helpers ------------------------------------------------------------------------------
-
 	private void rejectAuditInserts() {
-		// A real database-level failure of every further audit INSERT; existing rows stay valid.
 		long maxId = this.jdbc.queryForObject("SELECT COALESCE(MAX(id), 0) FROM moderation_actions", Long.class);
 		this.jdbc.execute("ALTER TABLE moderation_actions ADD CONSTRAINT " + REJECT_AUDIT_INSERTS + " CHECK (id <= "
 				+ maxId + ")");
@@ -698,9 +657,6 @@ class ModerationAuditIntegrationTest {
 		return directAction(this.aliceToken, path);
 	}
 
-	/**
-	 * Performs a state-changing moderation operation and returns the id of its audit entry.
-	 */
 	private long directAction(String token, String path) throws Exception {
 		long before = auditCount();
 		perform(post(ADMIN + path), token).andExpect(status().isNoContent());

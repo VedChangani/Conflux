@@ -14,11 +14,6 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import jakarta.validation.Payload;
 
-/**
- * A syntactically valid absolute {@code http} or {@code https} URL with a host, e.g.
- * {@code https://example.com/me}. Purely syntactic: the URL is never fetched and ownership
- * is never checked. {@code null} is considered valid.
- */
 @Documented
 @Target({ ElementType.FIELD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT })
 @Retention(RetentionPolicy.RUNTIME)

@@ -8,10 +8,6 @@ import { parseId } from '../../lib/ids'
 import { useAsync } from '../../lib/useAsync'
 import { messagesApi } from './messagesApi'
 
-/**
- * `/messages/connection/:connectionId`: opens the conversation of an accepted connection.
- * The connection's status is never assumed: only a conversation the backend lists is opened.
- */
 export function ConversationForConnection() {
   const { connectionId: raw } = useParams()
   const connectionId = parseId(raw)

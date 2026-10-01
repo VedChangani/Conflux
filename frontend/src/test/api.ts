@@ -17,7 +17,6 @@ export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-/** A backend-style RFC 9457 error response. */
 export function problem(status: number, detail: string, errors?: FieldError[]): Response {
   return new Response(JSON.stringify({ type: 'about:blank', status, detail, ...(errors && { errors }) }), {
     status,
@@ -34,10 +33,6 @@ export interface RecordedRequest {
 
 type Handler = () => Response | Promise<Response>
 
-/**
- * Stubs `fetch` with handlers keyed by `"METHOD /path"` (relative to the API base URL)
- * and records every request. The handler map may be changed during a test.
- */
 export function mockApi(handlers: Record<string, Handler>) {
   vi.stubEnv('VITE_API_BASE_URL', TEST_API_BASE_URL)
   const requests: RecordedRequest[] = []
@@ -53,7 +48,6 @@ export function mockApi(handlers: Record<string, Handler>) {
   return { handlers, requests }
 }
 
-/** A promise whose settlement the test controls, for observing in-flight states. */
 export function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void

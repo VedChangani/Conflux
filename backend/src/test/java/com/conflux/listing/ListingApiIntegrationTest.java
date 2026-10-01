@@ -45,11 +45,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * HTTP behaviour of the listing API: full context, real security filter chain, Flyway-
- * migrated H2 database. Suspension has no API yet (future trust-and-safety work), so tests
- * set SUSPENDED with SQL; every other status is reached through the real endpoints.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -97,14 +92,11 @@ class ListingApiIntegrationTest {
 		this.bobToken = this.tokenService.issueAccessToken(this.bob).accessToken();
 	}
 
-	// Committed rows would break other test classes that delete users (listings reference users).
 	@AfterEach
 	void cleanDatabase() {
 		this.listingRepository.deleteAllInBatch();
 		this.userRepository.deleteAllInBatch();
 	}
-
-	// ---- Creation ----------------------------------------------------------------------
 
 	@Test
 	void authenticatedUserCreatesDraftListingOwnedByThemWithServerGeneratedSlug() throws Exception {
@@ -211,8 +203,6 @@ class ListingApiIntegrationTest {
 			.andExpect(jsonPath("$.slug").value(matchesPattern(URL_SAFE_SLUG)));
 	}
 
-	// ---- Validation --------------------------------------------------------------------
-
 	@Test
 	void invalidRequestsAreRejectedWith400AndNothingIsCreated() throws Exception {
 		assertRejected(b -> b.put("title", "   "), "title");
@@ -260,8 +250,6 @@ class ListingApiIntegrationTest {
 			.andExpect(status().isBadRequest());
 		assertThat(this.listingRepository.count()).isZero();
 	}
-
-	// ---- Public browsing ---------------------------------------------------------------
 
 	@Test
 	void onlyPublishedListingsAppearInPublicBrowsingAsLightweightCards() throws Exception {
@@ -350,7 +338,6 @@ class ListingApiIntegrationTest {
 	@Test
 	void publicBrowsingIsPaginatedAndOrderedByPublishedAtDescending() throws Exception {
 		Instant base = Instant.parse("2026-03-01T00:00:00Z");
-		// Created in an order different from publication order.
 		int[] dayOffsets = { 2, 0, 4, 1, 3 };
 		for (int i = 0; i < dayOffsets.length; i++) {
 			long id = createListing(this.aliceToken, "Listing day " + dayOffsets[i]);
@@ -390,8 +377,6 @@ class ListingApiIntegrationTest {
 		}
 		this.mockMvc.perform(get(LISTINGS).param("size", "50")).andExpect(status().isOk());
 	}
-
-	// ---- Ownership ---------------------------------------------------------------------
 
 	@Test
 	void ownerCanReadOwnPrivateListing() throws Exception {
@@ -474,14 +459,11 @@ class ListingApiIntegrationTest {
 			.andExpect(jsonPath("$.totalElements").value(1))
 			.andExpect(jsonPath("$.content[0].title").value("Bob listing"));
 
-		// An ownerId query parameter is not a feature: it is ignored.
 		this.mockMvc.perform(get(MINE).param("ownerId", this.alice.getId().toString())
 				.header(HttpHeaders.AUTHORIZATION, bearer(this.bobToken)))
 			.andExpect(jsonPath("$.totalElements").value(1))
 			.andExpect(jsonPath("$.content[0].title").value("Bob listing"));
 	}
-
-	// ---- Publishing --------------------------------------------------------------------
 
 	@Test
 	void ownerPublishesDraftAndItIsPublicImmediately() throws Exception {
@@ -558,8 +540,6 @@ class ListingApiIntegrationTest {
 		assertThat(statusOf(published)).isEqualTo("PUBLISHED");
 	}
 
-	// ---- Editing -----------------------------------------------------------------------
-
 	@Test
 	void editingDraftKeepsItDraftAndReplacesContent() throws Exception {
 		long draft = createListing(this.aliceToken, "Draft");
@@ -623,8 +603,6 @@ class ListingApiIntegrationTest {
 		}
 	}
 
-	// ---- Archiving ---------------------------------------------------------------------
-
 	@Test
 	void archivingAPublishedListingHidesItButKeepsTheRowAndPublicationDate() throws Exception {
 		long id = createListing(this.aliceToken, "To archive");
@@ -638,7 +616,6 @@ class ListingApiIntegrationTest {
 		assertThat(this.listingRepository.existsById(id)).isTrue();
 		assertThat(statusOf(id)).isEqualTo("ARCHIVED");
 		assertThat(publishedAtOf(id)).isEqualTo(LocalDateTime.of(2026, 2, 1, 0, 0));
-		// Still visible to the owner, individually and in /mine.
 		this.mockMvc.perform(get(MINE + "/" + id).header(HttpHeaders.AUTHORIZATION, bearer(this.aliceToken)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("ARCHIVED"));
@@ -654,7 +631,6 @@ class ListingApiIntegrationTest {
 		assertThat(statusOf(draft)).isEqualTo("ARCHIVED");
 		assertThat(publishedAtOf(draft)).isNull();
 
-		// Repeating the archive is safe.
 		archive(this.aliceToken, draft).andExpect(status().isNoContent());
 		assertThat(statusOf(draft)).isEqualTo("ARCHIVED");
 
@@ -664,8 +640,6 @@ class ListingApiIntegrationTest {
 		assertThat(statusOf(suspended)).isEqualTo("SUSPENDED");
 		assertThat(this.listingRepository.count()).isEqualTo(2);
 	}
-
-	// ---- Security ----------------------------------------------------------------------
 
 	@Test
 	void protectedListingEndpointsRequireAuthentication() throws Exception {
@@ -739,8 +713,6 @@ class ListingApiIntegrationTest {
 					ZoneOffset.UTC));
 	}
 
-	// ---- Helpers ------------------------------------------------------------------------
-
 	private static Map<String, Object> body() {
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("title", "AI Invoice Reconciliation");
@@ -786,11 +758,6 @@ class ListingApiIntegrationTest {
 		return this.mockMvc.perform(post(LISTINGS + "/" + id + "/publish").header(HttpHeaders.AUTHORIZATION, bearer(token)));
 	}
 
-	/**
-	 * Creates one of Alice's listings and brings it into {@code status} through the real
-	 * owner endpoints; SUSPENDED has no API yet (future trust-and-safety), so it is set with
-	 * SQL after a real publish.
-	 */
 	private long listingIn(ListingStatus status, String title) throws Exception {
 		long id = createListing(this.aliceToken, title);
 		switch (status) {
@@ -838,10 +805,6 @@ class ListingApiIntegrationTest {
 		return this.jdbc.queryForObject("SELECT published_at FROM listings WHERE id = ?", LocalDateTime.class, id);
 	}
 
-	/**
-	 * Publishes one of Alice's listings through the real endpoint, then pins its
-	 * {@code publishedAt} for deterministic ordering. Written as UTC, like Hibernate does.
-	 */
 	private void publishAt(long id, Instant publishedAt) throws Exception {
 		publish(this.aliceToken, id).andExpect(status().isOk());
 		this.jdbc.update("UPDATE listings SET published_at = ? WHERE id = ?",

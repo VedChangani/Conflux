@@ -19,17 +19,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
 
-/**
- * One entry of the moderation audit log: an administrator ({@code actor}) performed a
- * successful trust &amp; safety action. Append-only: created through
- * {@link ModerationActionService} in the transaction of the action it records, never
- * changed or deleted (no setters, {@link Immutable}, every column non-updatable). Purely
- * historical: nothing reads it to decide whether an action is allowed.
- * <p>
- * Kept separate from {@link Report}: a report is what a user said, an action is what an
- * administrator did. The target is {@code targetType} + {@code targetId} as for reports;
- * {@code report} is set for report reviews only.
- */
 @Entity
 @Immutable
 @Table(name = "moderation_actions")
@@ -66,9 +55,6 @@ public class ModerationAction {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected ModerationAction() {
 	}
 
@@ -88,11 +74,6 @@ public class ModerationAction {
 		this.note = note;
 	}
 
-	/**
-	 * A direct user or listing moderation action (not linked to a report, no note).
-	 * @param actionType one of SUSPEND_USER, RESTORE_USER, SUSPEND_LISTING, RESTORE_LISTING;
-	 * it determines the target type
-	 */
 	static ModerationAction direct(User actor, ModerationActionType actionType, Long targetId) {
 		ReportTargetType targetType = switch (Objects.requireNonNull(actionType, "actionType must not be null")) {
 			case SUSPEND_USER, RESTORE_USER -> ReportTargetType.USER;
@@ -102,10 +83,6 @@ public class ModerationAction {
 		return new ModerationAction(actor, actionType, targetType, targetId, null, null);
 	}
 
-	/**
-	 * The review of {@code report}: its target, and its resolution note as the note.
-	 * @param actionType RESOLVE_REPORT or DISMISS_REPORT
-	 */
 	static ModerationAction review(User actor, ModerationActionType actionType, Report report) {
 		Objects.requireNonNull(report, "report must not be null");
 		if (actionType != ModerationActionType.RESOLVE_REPORT && actionType != ModerationActionType.DISMISS_REPORT) {

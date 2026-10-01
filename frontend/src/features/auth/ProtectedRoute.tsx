@@ -3,12 +3,6 @@ import { paths } from '../../app/paths'
 import { Loading } from '../../components/Loading'
 import { useAuth } from './useAuth'
 
-/**
- * Layout route that renders its children only for a confirmed account. Anonymous
- * visitors are sent to the login page, with the requested location in `state.from`
- * so a successful login returns them there. After a deliberate logout there is
- * nothing to return to.
- */
 export function ProtectedRoute() {
   const { status, loggedOut } = useAuth()
   const location = useLocation()

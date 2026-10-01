@@ -11,11 +11,6 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import jakarta.validation.Payload;
 
-/**
- * Bean Validation constraint for usernames, delegating to {@link User#isValidUsername(String)}
- * so request validation and the entity always apply the same rule. {@code null} is
- * considered valid; combine with {@code @NotBlank} where the value is required.
- */
 @Documented
 @Target({ ElementType.FIELD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT })
 @Retention(RetentionPolicy.RUNTIME)

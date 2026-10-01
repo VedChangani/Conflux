@@ -13,22 +13,16 @@ import { useAsync } from '../lib/useAsync'
 
 type Mode = 'view' | 'edit' | 'saved'
 
-/**
- * `/profile`: the signed-in user's own profile (`GET /profile`), with an edit mode.
- * Rendered behind {@link ProtectedRoute}.
- */
 export function ProfilePage() {
   const { account, refreshAccount } = useAuth()
   const load = useCallback((signal: AbortSignal) => profileApi.ownProfile(signal), [])
   const result = useAsync(load)
-  // The profile as the last successful save returned it.
   const [saved, setSaved] = useState<UserProfile | null>(null)
   const [mode, setMode] = useState<Mode>('view')
   const [focusAfter, setFocusAfter] = useState<Mode | null>(null)
   const editButtonRef = useRef<HTMLButtonElement>(null)
   const noticeRef = useRef<HTMLDivElement>(null)
 
-  // Keep keyboard focus where the user is: the form's heading, the confirmation, or the Edit button.
   useEffect(() => {
     if (focusAfter === 'edit') {
       document.querySelector<HTMLElement>('.profile-edit h1')?.focus()
@@ -47,7 +41,6 @@ export function ProfilePage() {
   function handleSaved(profile: UserProfile) {
     setSaved(profile)
     switchTo('saved')
-    // The navigation shows the session's display name: read the account again if it changed.
     if (profile.displayName !== account?.displayName) {
       void refreshAccount()
     }

@@ -7,12 +7,10 @@ import { isHttpUrl } from '../profile/validation'
 import { AdminStatusBadge } from './AdminStatusBadge'
 import type { ListingTarget, MessageTarget, ReportPerson, UserTarget } from './types'
 
-/** `https://github.com/ada/` → `github.com/ada`. */
 function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
 }
 
-/** A reporter, reviewer, owner or sender: name plus a link to their public profile. */
 export function PersonSummary({ person, isYou = false }: { person: ReportPerson | null; isYou?: boolean }) {
   if (person === null) {
     return <span className="admin-muted">Account no longer exists</span>
@@ -35,7 +33,6 @@ export function PersonSummary({ person, isYou = false }: { person: ReportPerson 
   )
 }
 
-/** The reported account, with exactly the fields of `UserTarget`. */
 export function UserTargetView({ target, isYou }: { target: UserTarget; isYou: boolean }) {
   const links = [
     { label: 'Website', url: target.websiteUrl },
@@ -95,7 +92,6 @@ export function UserTargetView({ target, isYou }: { target: UserTarget; isYou: b
   )
 }
 
-/** The reported listing, with exactly the fields of `ListingTarget`. */
 export function ListingTargetView({ target, accountId }: { target: ListingTarget; accountId: number | null }) {
   return (
     <div className="target-card" data-target="listing">
@@ -130,7 +126,6 @@ export function ListingTargetView({ target, accountId }: { target: ListingTarget
   )
 }
 
-/** The reported message, with exactly the fields of `MessageTarget`. */
 export function MessageTargetView({ target, accountId }: { target: MessageTarget; accountId: number | null }) {
   return (
     <div className="target-card" data-target="message">

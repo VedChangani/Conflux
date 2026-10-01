@@ -70,7 +70,6 @@ describe('AppShell navigation', () => {
     const router = renderApp('/')
 
     const skip = screen.getByRole('link', { name: 'Skip to main content' })
-    // The first link in the page, ahead of the brand and the navigation.
     expect(screen.getAllByRole('link')[0]).toBe(skip)
     expect(skip.getAttribute('href')).toBe('#main-content')
 
@@ -91,7 +90,6 @@ describe('AppShell navigation', () => {
     fireEvent.click(within(nav()).getByRole('button', { name: 'Log out' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
-    // An explicit logout is not a "return here after login" redirect.
     expect(router.state.location.state).toBeNull()
     expect(screen.getByRole('heading', { level: 1, name: 'Log in' })).toBeTruthy()
     expect(within(nav()).getByRole('link', { name: 'Log in' })).toBeTruthy()

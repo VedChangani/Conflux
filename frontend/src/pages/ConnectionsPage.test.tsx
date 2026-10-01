@@ -127,7 +127,6 @@ describe('Received requests', () => {
     expect(done.getByText('Mar 5, 2026').getAttribute('datetime')).toBe('2026-03-05T10:00:00Z')
     expect(done.queryByRole('button')).toBeNull()
 
-    // Ids and private fields are not rendered.
     expect(region.textContent).not.toContain('21')
     expect(region.textContent).not.toContain(ACCOUNT.email)
   })
@@ -185,7 +184,6 @@ describe('Received requests', () => {
 
     fireEvent.click(filters().getByRole('link', { name: 'Rejected' }))
 
-    // A new filter starts again at the first page.
     await waitFor(() => expect(router.state.location.search).toBe('?status=REJECTED'))
     await waitFor(() => expect(listRequests(requests).at(-1)).toBe('/connections/received?status=REJECTED&page=0&size=12'))
     expect(filters().getByRole('link', { name: 'Rejected' }).getAttribute('aria-current')).toBe('true')

@@ -8,7 +8,6 @@ export const CONNECTION_STATUS_LABELS: Record<ConnectionStatus, string> = {
   WITHDRAWN: 'Withdrawn',
 }
 
-/** Readable status, also for a value the backend may add later. */
 export function statusLabel(status: string): string {
   return labelOf(CONNECTION_STATUS_LABELS, status)
 }

@@ -4,13 +4,6 @@ import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * Rate limits bound from {@code conflux.rate-limit.*} (the defaults and the environment
- * variables that override them are in {@code application.properties}); invalid values fail
- * application startup.
- *
- * @param maxTrackedKeys upper bound on the number of counters kept in memory at once
- */
 @ConfigurationProperties("conflux.rate-limit")
 public record RateLimitProperties(int maxTrackedKeys, Limit login, Limit register, Limit listingCreate,
 		Limit listingPublish, Limit listingSave, Limit listingInterest, Limit messageSend, Limit reportCreate,
@@ -64,9 +57,6 @@ public record RateLimitProperties(int maxTrackedKeys, Limit login, Limit registe
 		}
 	}
 
-	/**
-	 * At most {@code maxRequests} requests per {@code window}.
-	 */
 	public record Limit(int maxRequests, Duration window) {
 
 		public Limit {

@@ -30,9 +30,6 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-/**
- * V5 schema and {@link ConnectionRepository} against the Flyway-migrated H2 database.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
@@ -109,7 +106,6 @@ class ConnectionRepositoryTest {
 		assertThat(nativeList("SELECT index_name FROM information_schema.indexes WHERE table_schema = SCHEMA() "
 				+ "AND table_name = 'connections'"))
 			.contains("idx_connections_listing_id");
-		// No owner column: the owner is always the listing's owner.
 		assertThat(nativeList("SELECT column_name FROM information_schema.columns WHERE table_schema = SCHEMA() "
 				+ "AND table_name = 'connections'"))
 			.doesNotContain("owner_id");
@@ -174,7 +170,6 @@ class ConnectionRepositoryTest {
 				PageRequest.of(0, 10)))
 			.isEmpty();
 
-		// Requester and owner can see it, anyone else cannot.
 		assertThat(this.connectionRepository.findForParticipant(bobToAlice.getId(), this.bob.getId())).isPresent();
 		assertThat(this.connectionRepository.findForParticipant(bobToAlice.getId(), this.alice.getId())).isPresent();
 		assertThat(this.connectionRepository.findForParticipant(bobToAlice.getId(), this.charlie.getId())).isEmpty();

@@ -11,22 +11,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/**
- * Persistence for {@link Message}. Callers check conversation participation first.
- */
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
-	/**
-	 * A page of a conversation's messages with their senders (paged in the database).
-	 */
 	@EntityGraph(attributePaths = "sender")
 	Page<Message> findByConversationId(Long conversationId, Pageable pageable);
 
-	/**
-	 * A message only if the user participates in its conversation (the connection's
-	 * requester or its listing's owner), with its sender; anyone else's message is
-	 * indistinguishable from a missing one.
-	 */
 	@EntityGraph(attributePaths = "sender")
 	@Query("""
 			select m from Message m
@@ -36,22 +25,12 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 			""")
 	Optional<Message> findForParticipant(@Param("id") Long id, @Param("userId") Long userId);
 
-	/**
-	 * Any message with its sender, conversation and listing (for admin report review only).
-	 */
 	@EntityGraph(attributePaths = { "sender", "conversation", "conversation.connection",
 			"conversation.connection.listing" })
 	Optional<Message> findWithContextById(Long id);
 
-	/**
-	 * The latest message of a conversation (newest first, then highest id).
-	 */
 	Optional<Message> findFirstByConversationIdOrderByCreatedAtDescIdDesc(Long conversationId);
 
-	/**
-	 * The messages carrying the latest timestamp of each given conversation, in one query
-	 * (callers break rare ties by id).
-	 */
 	@Query("""
 			select m from Message m
 			where m.conversation.id in :conversationIds

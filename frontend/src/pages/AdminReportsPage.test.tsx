@@ -23,7 +23,6 @@ const panel = () => within(screen.getByRole('article'))
 const section = (name: string) => within(panel().getByRole('region', { name }))
 const dialog = () => within(screen.getByRole('dialog'))
 
-/** Opens report 101 from the default queue, with the given detail handlers. */
 async function openListingReport(handlers: Parameters<typeof mockApi>[0] = {}, detail: ReportDetail = listingReport()) {
   const api = signedIn({
     [OPEN_QUEUE]: () => json(pageOf([reportSummary()], { size: 20 })),
@@ -156,7 +155,6 @@ describe('Report queue', () => {
     fireEvent.change(select, { target: { value: '50' } })
 
     await waitFor(() => expect(count(requests, 'GET /admin/reports?status=OPEN&page=0&size=50')).toBe(1))
-    // A new page size starts from the first page.
     expect(router.state.location.search).toBe('?size=50')
   })
 
@@ -236,7 +234,6 @@ describe('Report queue', () => {
     expect(alert.textContent).not.toContain('report queue')
     expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull()
     expect(document.body.textContent).not.toContain(LEAKY_DETAIL)
-    // The account is read again, in case it lost its admin role.
     await waitFor(() => expect(count(requests, 'GET /auth/me')).toBe(2))
   })
 
@@ -466,7 +463,6 @@ describe('Resolving and dismissing', () => {
     expect(review.getByText('Listing suspended for off-platform payments.')).toBeTruthy()
     expect(review.getByText('You')).toBeTruthy()
     expect(review.queryByRole('button', { name: 'Resolve' })).toBeNull()
-    // The queue reloads (the report has left the OPEN filter); the detail needs no second read.
     expect(await screen.findByRole('heading', { name: 'Queue clear' })).toBeTruthy()
     expect(count(requests, OPEN_QUEUE)).toBe(2)
     expect(count(requests, 'GET /admin/reports/101')).toBe(1)
@@ -615,7 +611,6 @@ describe('Resolving and dismissing', () => {
     expect(alert.textContent).toContain('Nothing was changed.')
     expect(alert.textContent).not.toContain('You do not have permission')
     await waitFor(() => expect(count(requests, 'GET /auth/me')).toBe(2))
-    // The report itself is untouched.
     expect(section('Review').getByRole('button', { name: 'Resolve' })).toBeTruthy()
   })
 
@@ -665,7 +660,6 @@ describe('User moderation', () => {
     fireEvent.click(button)
     expect(dialog().getByRole('heading', { name: 'Suspend @alice?' })).toBeTruthy()
     expect(dialog().queryByLabelText(/note/)).toBeNull()
-    // The safe choice comes first.
     expect(document.activeElement).toBe(dialog().getByRole('button', { name: 'Cancel' }))
     fireEvent.click(dialog().getByRole('button', { name: 'Suspend account' }))
     expect((dialog().getByRole('button', { name: 'Suspending…' }) as HTMLButtonElement).disabled).toBe(true)
@@ -682,7 +676,6 @@ describe('User moderation', () => {
     expect(target.queryByRole('button', { name: 'Suspend account' })).toBeNull()
     expect(count(requests, 'GET /admin/reports/102')).toBe(2)
     expect(requests.find((request) => request.path === '/admin/users/7/suspend')?.body).toBeUndefined()
-    // Suspending doesn't decide the report.
     expect(section('Review').getByRole('button', { name: 'Resolve' })).toBeTruthy()
   })
 
@@ -701,7 +694,6 @@ describe('User moderation', () => {
   })
 
   it('treats a repeated (idempotent) action as a normal success', async () => {
-    // Someone else suspended the account first: the backend still answers 204.
     const suspended = userReport({ target: { ...(userReport().target as object), status: 'SUSPENDED' } } as Partial<ReportDetail>)
     const { handlers } = openUserReport({ 'POST /admin/users/7/suspend': () => noContent() })
 
@@ -730,7 +722,6 @@ describe('User moderation', () => {
 
     expect((await dialog().findByRole('alert')).textContent).toContain('You can’t suspend your own account.')
     expect(document.body.textContent).not.toContain(LEAKY_DETAIL)
-    // Nothing changed, so nothing is read again.
     expect(count(requests, 'GET /admin/reports/102')).toBe(1)
   })
 
@@ -787,7 +778,6 @@ describe('Listing moderation', () => {
     const target = section('Reported listing')
     expect(await target.findByRole('button', { name: 'Restore listing' })).toBeTruthy()
     expect(target.getByText('Suspended')).toBeTruthy()
-    // A suspended listing isn't on the marketplace, so there is no link to it.
     expect(target.queryByRole('link', { name: /View on the marketplace/ })).toBeNull()
     expect(count(requests, 'POST /admin/listings/5/suspend')).toBe(1)
     expect(count(requests, 'GET /admin/reports/101')).toBe(2)
@@ -820,7 +810,6 @@ describe('Listing moderation', () => {
     const { handlers } = await openListingReport({ 'POST /admin/listings/5/suspend': () => problem(409, LEAKY_DETAIL) })
 
     fireEvent.click(section('Reported listing').getByRole('button', { name: 'Suspend listing' }))
-    // The owner archived it meanwhile.
     handlers['GET /admin/reports/101'] = () => json(withListingStatus('ARCHIVED'))
     fireEvent.click(dialog().getByRole('button', { name: 'Suspend listing' }))
 

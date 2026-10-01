@@ -9,9 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/**
- * Persistence for {@link SavedListing}. Every method is scoped to one user.
- */
 public interface SavedListingRepository extends JpaRepository<SavedListing, Long> {
 
 	boolean existsByUserIdAndListingId(Long userId, Long listingId);
@@ -20,11 +17,6 @@ public interface SavedListingRepository extends JpaRepository<SavedListing, Long
 
 	void deleteByUserIdAndListingId(Long userId, Long listingId);
 
-	/**
-	 * The user's saves whose listing is currently publicly visible: PUBLISHED and owned by an
-	 * ACTIVE account (both fixed in the query), with the listing and its owner fetched in the
-	 * same query. Saves of listings that are no longer public are kept but not returned.
-	 */
 	@EntityGraph(attributePaths = { "listing", "listing.owner" })
 	@Query("""
 			select s from SavedListing s

@@ -18,17 +18,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
-/**
- * Editable listing content, used both to create a listing ({@code POST /listings}) and to
- * replace its content ({@code PUT /listings/{id}}): the two operations accept exactly the
- * same fields.
- * <p>
- * Owner, slug, status and timestamps are deliberately absent: the server controls them.
- * JSON properties that are not listed here (e.g. {@code ownerId}, {@code status},
- * {@code slug}) are not bound to anything and have no effect.
- * <p>
- * The text limits keep content well inside MySQL {@code TEXT} (65,535 bytes).
- */
 @ListingRequest.ConsistentPrice
 public record ListingRequest(
 		@NotBlank @Size(max = 120) String title,
@@ -45,17 +34,10 @@ public record ListingRequest(
 		Boolean priceNegotiable,
 		@Size(max = 5_000) String collaborationDetails) {
 
-	/**
-	 * {@code priceNegotiable} defaults to {@code false} when omitted.
-	 */
 	boolean priceNegotiableOrDefault() {
 		return Boolean.TRUE.equals(this.priceNegotiable);
 	}
 
-	/**
-	 * {@code askingPrice} and {@code currency} must be given together or not at all.
-	 * Violations are reported on the {@code currency} field.
-	 */
 	@Documented
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)

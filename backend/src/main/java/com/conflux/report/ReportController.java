@@ -10,9 +10,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Submitting reports. Requires a bearer token; the reporter is always the token's user.
- */
 @RestController
 @RequestMapping(ReportController.BASE_PATH)
 public class ReportController {

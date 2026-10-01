@@ -24,11 +24,6 @@ function countSummary(total: number, from: number, shown: number): string {
   return `Showing ${numberFormat.format(from)}–${numberFormat.format(to)} of ${numberFormat.format(total)} ${noun}`
 }
 
-/**
- * The signed-in user's saved listings, newest save first, paged through `?page=` (1-based
- * in the URL, as on the marketplace). Unsaving removes a card at once; the page is then
- * reloaded in the background so counts and paging stay accurate.
- */
 export function SavedListings() {
   const [params] = useSearchParams()
   const location = useLocation()
@@ -36,7 +31,6 @@ export function SavedListings() {
 
   const load = useCallback((signal: AbortSignal) => savedApi.list(page - 1, SAVED_PAGE_SIZE, signal), [page])
   const result = useAsync(load)
-  // Listings unsaved on this page. Hidden straight away, before the refreshed page arrives.
   const [removed, setRemoved] = useState<ReadonlySet<number>>(() => new Set())
   const [announcement, setAnnouncement] = useState('')
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -49,7 +43,6 @@ export function SavedListings() {
       }
       setRemoved((current) => new Set(current).add(listing.id))
       setAnnouncement(`Removed “${listing.title}” from your saved listings.`)
-      // The card (and the focused button) is gone: keep keyboard focus in the list.
       headingRef.current?.focus()
       retry()
     },

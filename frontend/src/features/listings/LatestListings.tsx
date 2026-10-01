@@ -9,7 +9,6 @@ import { listingsApi } from './listingsApi'
 
 const LATEST_COUNT = 6
 
-/** The most recently published listings (the backend's default order), for the home page. */
 export function LatestListings() {
   const load = useCallback((signal: AbortSignal) => listingsApi.discover(`page=0&size=${LATEST_COUNT}`, signal), [])
   const result = useAsync(load)

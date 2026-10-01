@@ -32,11 +32,6 @@ const SIZE_OPTIONS = PAGE_SIZE_OPTIONS.map((size) => ({ value: String(size), lab
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/**
- * Marketplace discovery: search, filters, sort and pagination over `GET /listings`.
- * All of it lives in the URL query string, so results are shareable and back/forward
- * work; the backend does all filtering and ordering.
- */
 export function ListingDiscovery() {
   const [params, setParams] = useSearchParams()
   const location = useLocation()
@@ -53,7 +48,6 @@ export function ListingDiscovery() {
     const search = withChanges(params, { page }).toString()
     return search ? `${location.pathname}?${search}` : location.pathname
   }
-  // After a page change, bring keyboard and screen-reader users back to the top of the results.
   const focusResults = () => resultsHeadingRef.current?.focus()
 
   const page = result.data ?? result.previousData

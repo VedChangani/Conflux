@@ -35,10 +35,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-/**
- * V6 schema, {@link ConversationRepository} and {@link MessageRepository} against the
- * Flyway-migrated H2 database.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
@@ -110,7 +106,6 @@ class ConversationRepositoryTest {
 		assertThat(nativeList("SELECT column_name FROM information_schema.index_columns WHERE table_schema = SCHEMA() "
 				+ "AND index_name = 'idx_messages_conversation_created_id' ORDER BY ordinal_position"))
 			.containsExactly("conversation_id", "created_at", "id");
-		// No duplicated relationships: participants, receiver and listing come from the connection.
 		assertThat(columns("conversations")).doesNotContain("requester_id", "owner_id", "listing_id");
 		assertThat(columns("messages")).doesNotContain("receiver_id", "listing_id");
 	}
@@ -182,7 +177,6 @@ class ConversationRepositoryTest {
 		assertThat(Hibernate.isInitialized(first.getConnection().getListing())).isTrue();
 		assertThat(Hibernate.isInitialized(first.getConnection().getListing().getOwner())).isTrue();
 		assertThat(Hibernate.isInitialized(first.getConnection().getRequester())).isTrue();
-		// Bob sees only his conversation.
 		assertThat(this.conversationRepository.findForParticipantByActivity(this.bob.getId(), PageRequest.of(0, 10))
 			.getTotalElements()).isEqualTo(1);
 	}
@@ -225,7 +219,6 @@ class ConversationRepositoryTest {
 		return this.listingRepository.save(listing);
 	}
 
-	// Bound as an Instant so Hibernate stores it as UTC, like the entities' own timestamps.
 	private void setTime(String table, Long id, String instant) {
 		this.entityManager.getEntityManager()
 			.createNativeQuery("UPDATE " + table + " SET created_at = ?1 WHERE id = ?2")

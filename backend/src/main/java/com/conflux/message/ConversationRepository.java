@@ -9,18 +9,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/**
- * Persistence for {@link Conversation}. Participant checks are part of the queries: a user
- * participates if they are the connection's requester or its listing's owner.
- */
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
 	Optional<Conversation> findByConnectionId(Long connectionId);
 
-	/**
-	 * A conversation only if the user participates, with connection, listing, owner and
-	 * requester fetched; anyone else's conversation is indistinguishable from a missing one.
-	 */
 	@EntityGraph(attributePaths = { "connection", "connection.listing", "connection.listing.owner",
 			"connection.requester" })
 	@Query("""
@@ -30,12 +22,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
 			""")
 	Optional<Conversation> findForParticipant(@Param("id") Long id, @Param("userId") Long userId);
 
-	/**
-	 * The user's conversations, most recent activity first: the latest message's time, or the
-	 * conversation's creation time when it has no messages, then id descending. Each row is
-	 * {@code [Conversation, Instant activityAt]}; the connection, listing, owner and requester
-	 * are fetched in the same query. Paging must not add a sort (the order is fixed here).
-	 */
 	@Query(value = """
 			select c, coalesce((select max(m.createdAt) from Message m where m.conversation = c), c.createdAt) as activityAt
 			from Conversation c

@@ -5,11 +5,9 @@ import { messagesApi } from './messagesApi'
 import { sendErrorOf, type SendError } from './sendErrors'
 import { MESSAGE_MAX_LENGTH, type Message } from './types'
 
-/** Show the remaining characters once this close to the limit. */
 const COUNTER_FROM = MESSAGE_MAX_LENGTH - 500
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/** Touch keyboards have no convenient Shift+Enter, so Enter adds a line there. */
 function enterAddsLine(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
 }
@@ -17,19 +15,12 @@ function enterAddsLine(): boolean {
 interface ComposerProps {
   conversationId: number
   recipientName: string
-  /** Called with the message as the backend stored it. */
   onSent: (message: Message) => void
 }
 
-/**
- * Writes and sends a message. Blank and over-long messages are stopped here (the backend
- * trims and allows 5,000 characters); the draft is only cleared once the backend has
- * accepted it. If messaging turns out to be unavailable, the composer closes and says why.
- */
 export function Composer({ conversationId, recipientName, onSent }: ComposerProps) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
-  // A ref as well as state: Enter can be pressed again before the disabled button renders.
   const sendingRef = useRef(false)
   const [error, setError] = useState<SendError | null>(null)
   const [announcement, setAnnouncement] = useState('')

@@ -7,9 +7,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Public user profiles. No authentication required.
- */
 @RestController
 @RequestMapping(UserController.BASE_PATH)
 public class UserController {

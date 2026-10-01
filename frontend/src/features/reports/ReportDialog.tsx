@@ -28,15 +28,9 @@ const numberFormat = new Intl.NumberFormat('en-US')
 
 type Phase = 'form' | 'submitted' | 'closed-out'
 
-/**
- * The report form for one target: a reason, optional details, and Submit. A successful
- * report shows a confirmation and nothing else changes on the page; a repeat report is
- * caught by the backend (409).
- */
 interface ReportDialogProps {
   target: ReportTarget
   onClose: () => void
-  /** The control that opened the dialog; focus returns to it. */
   returnFocusRef?: RefObject<HTMLElement | null>
 }
 
@@ -47,7 +41,6 @@ export function ReportDialog({ target, onClose, returnFocusRef }: ReportDialogPr
   const [outcome, setOutcome] = useState<ReportOutcomeError | null>(null)
   const [phase, setPhase] = useState<Phase>('form')
   const [submitting, setSubmitting] = useState(false)
-  // A ref as well as state: a second submit can arrive before the disabled button renders.
   const submittingRef = useRef(false)
   const mounted = useRef(true)
   const doneRef = useRef<HTMLButtonElement>(null)
@@ -63,7 +56,6 @@ export function ReportDialog({ target, onClose, returnFocusRef }: ReportDialogPr
     }
   }, [])
 
-  // The form is replaced by a confirmation or a final message: focus its button.
   useEffect(() => {
     if (phase !== 'form') {
       doneRef.current?.focus()
@@ -109,7 +101,6 @@ export function ReportDialog({ target, onClose, returnFocusRef }: ReportDialogPr
         return
       }
       if (caught instanceof ApiError && caught.status === 401) {
-        // The session ended: log in again, then come back here.
         onClose()
         redirectToLogin()
         return

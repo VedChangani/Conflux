@@ -4,7 +4,6 @@ import { routes } from '../app/routes'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
 
-// The real route tree plus one protected page, since the app has none yet.
 const [shell] = routes
 const testRoutes: RouteObject[] = [
   {
@@ -17,7 +16,6 @@ const testRoutes: RouteObject[] = [
   },
 ]
 
-/** Renders the whole app (auth provider, shell, routes) at the given location. */
 export function renderApp(entry: InitialEntry = '/') {
   const router = createMemoryRouter(testRoutes, { initialEntries: [entry] })
   render(

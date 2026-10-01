@@ -11,11 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * User profiles. Public profiles exist only for ACTIVE accounts; the own profile is always
- * the authenticated user's ({@link CurrentUser}). Each call is a single user query; no
- * listings, connections or messages are loaded.
- */
 @Service
 public class UserService {
 
@@ -31,12 +26,6 @@ public class UserService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * The public profile for a username (matched with the usual username normalization, so
-	 * {@code Alice} finds {@code alice}).
-	 * @throws ResponseStatusException 404 if there is no ACTIVE account with that username;
-	 * suspended and nonexistent accounts are indistinguishable
-	 */
 	@Transactional(readOnly = true)
 	public UserProfileResponse publicProfile(String username) {
 		if (!User.isValidUsername(username)) {
@@ -47,21 +36,11 @@ public class UserService {
 			.orElseThrow(UserService::notFound);
 	}
 
-	/**
-	 * The authenticated user's own profile, whatever their account status.
-	 */
 	@Transactional(readOnly = true)
 	public UserProfileResponse currentProfile() {
 		return UserProfileResponse.from(currentAccount());
 	}
 
-	/**
-	 * Replaces the authenticated user's editable profile fields. Username, email, role and
-	 * status cannot change here.
-	 * @throws ResponseStatusException 403 for a suspended account
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user updated the
-	 * profile too often recently
-	 */
 	@Transactional
 	public UserProfileResponse updateProfile(UpdateProfileRequest request) {
 		User user = currentActiveUser();
@@ -71,20 +50,11 @@ public class UserService {
 		user.setWebsiteUrl(request.websiteUrl());
 		user.setGithubUrl(request.githubUrl());
 		user.setLinkedinUrl(request.linkedinUrl());
-		// After the 403 check, before the flush; a 429 rolls the in-memory changes back.
 		this.rateLimiter.acquire(RateLimitOperation.PROFILE_UPDATE, this.currentUser.id().toString());
 		this.userRepository.saveAndFlush(user);
 		return UserProfileResponse.from(user);
 	}
 
-	/**
-	 * The authenticated administrator, re-checked against the database for every admin
-	 * operation. Routes under {@code /api/v1/admin/**} already require {@code ROLE_ADMIN} in
-	 * the token; this additionally stops a demoted or suspended admin whose token is still
-	 * valid.
-	 * @throws AccessDeniedException (403) if the account is no longer an administrator
-	 * @throws ResponseStatusException 403 if the account is suspended
-	 */
 	public User currentActiveAdmin() {
 		User user = currentAccount();
 		if (user.getRole() != UserRole.ADMIN) {
@@ -94,10 +64,6 @@ public class UserService {
 		return user;
 	}
 
-	/**
-	 * The authenticated user, for write operations (suspended accounts cannot write).
-	 * @throws ResponseStatusException 403 if the account is suspended
-	 */
 	public User currentActiveUser() {
 		User user = currentAccount();
 		requireActive(user);

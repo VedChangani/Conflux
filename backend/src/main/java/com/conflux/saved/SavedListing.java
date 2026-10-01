@@ -17,11 +17,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/**
- * A listing saved (bookmarked) by a user. An explicit entity rather than a many-to-many
- * association so the relationship can carry its own data ({@code createdAt} now, more
- * later). The database guarantees at most one row per (user, listing).
- */
 @Entity
 @Table(name = "saved_listings")
 public class SavedListing {
@@ -41,9 +36,6 @@ public class SavedListing {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected SavedListing() {
 	}
 
@@ -52,7 +44,6 @@ public class SavedListing {
 		this.listing = Objects.requireNonNull(listing, "listing must not be null");
 	}
 
-	// Same approach as User and Listing: UTC, truncated to the DATETIME(6) precision.
 	@PrePersist
 	void onCreate() {
 		this.createdAt = Instant.now().truncatedTo(ChronoUnit.MICROS);

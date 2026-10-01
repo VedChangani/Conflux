@@ -73,7 +73,6 @@ describe('Saved listings page', () => {
 
     const listRequest = requests.find((request) => request.path === '/saved-listings?page=0&size=12')
     expect(listRequest?.headers.get('Authorization')).toBe('Bearer stored-token')
-    // Every listing here is known to be saved, so no separate lookup is needed.
     expect(paths(requests).filter((request) => request.includes('/saved-listings'))).toEqual([FIRST_PAGE])
   })
 
@@ -177,7 +176,6 @@ describe('Unsaving from the saved listings page', () => {
     const toggle = await screen.findByRole('button', { name: 'Saved Ledgerly' })
     fireEvent.click(toggle)
 
-    // Nothing changes until the API has answered.
     expect(toggle.textContent).toContain('Removing…')
     expect(toggle).toHaveProperty('disabled', true)
     expect(screen.getByRole('heading', { level: 3, name: 'Ledgerly' })).toBeTruthy()

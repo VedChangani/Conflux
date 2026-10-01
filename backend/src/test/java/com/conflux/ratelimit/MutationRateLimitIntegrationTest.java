@@ -42,16 +42,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Rate limiting of the remaining mutations, end to end: listing edit, archive and unsave,
- * connection accept/reject (one shared allowance) and withdraw, profile edit, and admin
- * moderation (one shared allowance per administrator). Each of these allows 2 requests per
- * 10 minutes here; every other limit keeps the test profile's very high value. The limiter
- * lives as long as the application context, so every test works with freshly created
- * (new-id) users.
- * <p>
- * Alice and Erin are administrators; Bob, Charlie and Dave are users.
- */
 @SpringBootTest(properties = { "conflux.rate-limit.listing-update.max-requests=2",
 		"conflux.rate-limit.listing-update.window=10m", "conflux.rate-limit.listing-archive.max-requests=2",
 		"conflux.rate-limit.listing-archive.window=10m", "conflux.rate-limit.listing-unsave.max-requests=2",
@@ -133,8 +123,6 @@ class MutationRateLimitIntegrationTest {
 		}
 	}
 
-	// ---- Listing edit ----------------------------------------------------------------------
-
 	@Test
 	void listingUpdatesAreLimitedPerUserAndARejectedUpdateChangesNothing() throws Exception {
 		long listing = createListing(this.bobToken, "Original");
@@ -162,7 +150,6 @@ class MutationRateLimitIntegrationTest {
 		update(this.bobToken, listing, "Second edit").andExpect(status().isOk());
 		assertTooManyRequests(update(this.bobToken, listing, "Third edit"));
 
-		// Once the allowance is used up, the failures still answer exactly as before.
 		assertListingUpdateFailures(listing, archived, charliesListing);
 	}
 
@@ -176,8 +163,6 @@ class MutationRateLimitIntegrationTest {
 				.content(JSON.writeValueAsString(listingBody("Anonymous"))))
 			.andExpect(status().isUnauthorized());
 	}
-
-	// ---- Listing archive -------------------------------------------------------------------
 
 	@Test
 	void archivingIsLimitedPerUserWhileFailuresKeepTheirStatus() throws Exception {
@@ -218,8 +203,6 @@ class MutationRateLimitIntegrationTest {
 		archive(this.bobToken, first).andExpect(status().isNoContent());
 	}
 
-	// ---- Unsave ----------------------------------------------------------------------------
-
 	@Test
 	void unsavingIsLimitedPerUserSeparateFromSavingAndRepeatedUnsavesDoNotCount() throws Exception {
 		long listing = publishedListing(this.charlieToken, "Charlie's");
@@ -227,7 +210,6 @@ class MutationRateLimitIntegrationTest {
 		save(this.bobToken, listing).andExpect(status().isNoContent());
 		save(this.bobToken, other).andExpect(status().isNoContent());
 		unsave(this.bobToken, listing).andExpect(status().isNoContent());
-		// Nothing left to remove: a no-op that is answered normally without counting.
 		for (int i = 0; i < 3; i++) {
 			unsave(this.bobToken, listing).andExpect(status().isNoContent());
 		}
@@ -241,8 +223,6 @@ class MutationRateLimitIntegrationTest {
 		save(this.daveToken, listing).andExpect(status().isNoContent());
 		unsave(this.daveToken, listing).andExpect(status().isNoContent());
 	}
-
-	// ---- Connection decisions --------------------------------------------------------------
 
 	@Test
 	void acceptAndRejectShareOneAllowancePerOwner() throws Exception {
@@ -260,7 +240,6 @@ class MutationRateLimitIntegrationTest {
 				fromDave))
 			.isZero();
 
-		// Another owner is not affected.
 		long bobsListing = publishedListing(this.bobToken, "Bob's");
 		accept(this.bobToken, interest(this.charlieToken, bobsListing)).andExpect(status().isOk());
 	}
@@ -286,7 +265,6 @@ class MutationRateLimitIntegrationTest {
 	}
 
 	private void assertConnectionDecisionFailures(long connection) throws Exception {
-		// The requester cannot answer, an outsider cannot see it, and anonymous callers are refused.
 		String requesterToken = this.jdbc.queryForObject("SELECT requester_id FROM connections WHERE id = ?",
 				Long.class, connection)
 			.equals(this.bob.getId()) ? this.bobToken : this.daveToken;
@@ -295,8 +273,6 @@ class MutationRateLimitIntegrationTest {
 		accept(this.erinToken, connection).andExpect(status().isNotFound());
 		this.mockMvc.perform(post(CONNECTIONS + "/" + connection + "/accept")).andExpect(status().isUnauthorized());
 	}
-
-	// ---- Connection withdraw ---------------------------------------------------------------
 
 	@Test
 	void withdrawingIsLimitedPerUserWhileFailuresKeepTheirStatus() throws Exception {
@@ -328,8 +304,6 @@ class MutationRateLimitIntegrationTest {
 		this.mockMvc.perform(delete(CONNECTIONS + "/" + bobsConnection)).andExpect(status().isUnauthorized());
 	}
 
-	// ---- Profile edit ----------------------------------------------------------------------
-
 	@Test
 	void profileUpdatesAreLimitedPerUserWhileValidationAndAuthenticationFailuresKeepTheirStatus()
 			throws Exception {
@@ -350,8 +324,6 @@ class MutationRateLimitIntegrationTest {
 		updateProfile(this.charlieToken, "Charlie One").andExpect(status().isOk());
 	}
 
-	// ---- Admin moderation ------------------------------------------------------------------
-
 	@Test
 	void allAdminModerationActionsShareOneAllowancePerAdministrator() throws Exception {
 		long listing = publishedListing(this.charlieToken, "Charlie's");
@@ -371,7 +343,6 @@ class MutationRateLimitIntegrationTest {
 		assertThat(reportStatus(secondReport)).isEqualTo("OPEN");
 		assertThat(auditCount()).isEqualTo(auditEntries);
 
-		// Another administrator has their own allowance, again shared by all actions.
 		suspendListing(this.erinToken, listing).andExpect(status().isNoContent());
 		resolve(this.erinToken, firstReport).andExpect(status().isOk());
 		assertTooManyRequests(restoreListing(this.erinToken, listing));
@@ -394,7 +365,6 @@ class MutationRateLimitIntegrationTest {
 		assertTooManyRequests(suspendUser(this.aliceToken, this.dave.getId()));
 
 		assertAdminFailures(draft, decided, open);
-		// Repeating a completed action changes nothing and is still answered normally.
 		suspendUser(this.aliceToken, this.bob.getId()).andExpect(status().isNoContent());
 		suspendListing(this.aliceToken, published).andExpect(status().isNoContent());
 	}
@@ -409,7 +379,6 @@ class MutationRateLimitIntegrationTest {
 		perform(post(ADMIN + "/reports/" + open + "/resolve").contentType(MediaType.APPLICATION_JSON)
 			.content(JSON.writeValueAsString(Map.of("resolutionNote", "x".repeat(10_001)))), this.aliceToken)
 			.andExpect(status().isBadRequest());
-		// No-ops: restoring an active account or a published listing.
 		restoreUser(this.aliceToken, this.charlie.getId()).andExpect(status().isNoContent());
 		assertThat(reportStatus(open)).isEqualTo("OPEN");
 	}
@@ -422,7 +391,6 @@ class MutationRateLimitIntegrationTest {
 			assertAdminRefused(this.bobToken, report, listing, 403);
 			assertAdminRefused(null, report, listing, 401);
 		}
-		// A token that still says ADMIN is refused once the database says otherwise.
 		this.jdbc.update("UPDATE users SET role = 'USER' WHERE id = ?", this.alice.getId());
 		for (int i = 0; i < 3; i++) {
 			assertAdminRefused(this.aliceToken, report, listing, 403);
@@ -450,8 +418,6 @@ class MutationRateLimitIntegrationTest {
 		assertThat(reportStatus(report)).isEqualTo("OPEN");
 	}
 
-	// ---- Cross-cutting ---------------------------------------------------------------------
-
 	@Test
 	void suspendedUsersKeepGettingTheirNormal403() throws Exception {
 		long bobsListing = publishedListing(this.bobToken, "Bob's");
@@ -478,7 +444,6 @@ class MutationRateLimitIntegrationTest {
 		setListingStatus(bobsArchived, "ARCHIVED");
 		this.jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", this.bob.getId());
 
-		// Another user's listing, a missing one and a state conflict all answer 403, like every other write.
 		for (long listing : new long[] { charliesListing, Long.MAX_VALUE, bobsArchived }) {
 			assertSuspended(update(this.bobToken, listing, "Edit"));
 			assertSuspended(publish(this.bobToken, listing));
@@ -497,7 +462,6 @@ class MutationRateLimitIntegrationTest {
 		long aliceToCharlie = interest(this.aliceToken, publishedListing(this.charlieToken, "Charlie's"));
 		long charliesListing = publishedListing(this.charlieToken, "Charlie's second");
 
-		// Use up listing-update, connection-decision and admin-moderation for Alice.
 		update(this.aliceToken, listing, "Edit 1").andExpect(status().isOk());
 		update(this.aliceToken, listing, "Edit 2").andExpect(status().isOk());
 		assertTooManyRequests(update(this.aliceToken, listing, "Edit 3"));
@@ -508,13 +472,11 @@ class MutationRateLimitIntegrationTest {
 		restoreUser(this.aliceToken, this.dave.getId()).andExpect(status().isNoContent());
 		assertTooManyRequests(suspendListing(this.aliceToken, charliesListing));
 
-		// Every other operation still has its full allowance.
 		archive(this.aliceToken, other).andExpect(status().isNoContent());
 		withdraw(this.aliceToken, aliceToCharlie).andExpect(status().isNoContent());
 		save(this.aliceToken, charliesListing).andExpect(status().isNoContent());
 		unsave(this.aliceToken, charliesListing).andExpect(status().isNoContent());
 		updateProfile(this.aliceToken, "Alice Again").andExpect(status().isOk());
-		// Including the Batch 15 ones.
 		publish(this.aliceToken, createListing(this.aliceToken, "Alice's third")).andExpect(status().isOk());
 		report(this.aliceToken, "USER", this.bob.getId());
 	}
@@ -589,8 +551,6 @@ class MutationRateLimitIntegrationTest {
 			return updateProfile(token, displayName).andReturn().getResponse().getStatus();
 		};
 	}
-
-	// ---- Helpers ---------------------------------------------------------------------------
 
 	private static User admin(User user) {
 		user.setRole(UserRole.ADMIN);

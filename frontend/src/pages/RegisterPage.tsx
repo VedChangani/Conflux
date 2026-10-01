@@ -34,7 +34,6 @@ export function RegisterPage() {
 function RegistrationSuccess({ account }: { account: RegisteredAccount }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
-  // Move focus to the confirmation so keyboard and screen-reader users land on it.
   useEffect(() => {
     headingRef.current?.focus()
   }, [])

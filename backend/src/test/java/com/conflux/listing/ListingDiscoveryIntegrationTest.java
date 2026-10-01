@@ -40,14 +40,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Public marketplace discovery ({@code GET /api/v1/listings}) against one shared fixture:
- * six published listings covering every asset type and marketplace mode, several
- * categories, stages and prices (including ties and missing prices), plus one DRAFT, one
- * ARCHIVED and one SUSPENDED listing that match the same search terms and filters and
- * have the lowest prices, so any leak would show up. Tests only read, so the fixture is
- * created once for the class.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -56,7 +48,6 @@ class ListingDiscoveryIntegrationTest {
 
 	private static final String LISTINGS = "/api/v1/listings";
 
-	// Published fixture titles, created in this order (ascending ids).
 	private static final String P1 = "AI Invoice Reconciliation";
 
 	private static final String P2 = "Campus Tutor Network";
@@ -112,20 +103,16 @@ class ListingDiscoveryIntegrationTest {
 		published(this.bobToken, P4, "Invoices and payouts through one API.", "Developer-first accounting.",
 				"STARTUP", "COLLABORATE", "FINTECH", "REVENUE", "250000.00", "USD", "2026-01-04T10:00",
 				"2026-02-03T10:00");
-		// Same price as P3, same updatedAt as P4, same publishedAt as P6: exercises the tie-breakers.
 		published(this.aliceToken, P5, "CRM for freelancers.", "Simple pipeline tracking.", "MVP", "COLLABORATE",
 				"SAAS", "MVP", "5000.00", "EUR", "2026-01-05T10:00", "2026-02-03T10:00");
 		published(this.bobToken, P6, "Round-ups that invest.", "Behavioural finance app.", "MVP", "COLLABORATE",
 				"FINTECH", "LIVE", null, null, "2026-01-05T10:00", "2026-02-02T10:00");
 
-		// Hidden listings match searches for "reconciliation"/"zebra" and the MVP+COLLABORATE+FINTECH+LIVE
-		// filters, and are the cheapest, so a leak would surface in almost every test.
 		long draft = create(this.aliceToken, HIDDEN.get(0), "zebra", "1.00");
 		long archived = create(this.aliceToken, HIDDEN.get(1), "zebra", "2.00");
 		archive(archived);
 		long suspended = create(this.aliceToken, HIDDEN.get(2), "zebra", "3.00");
 		publish(this.aliceToken, suspended);
-		// Suspension has no API yet (future trust-and-safety feature).
 		this.jdbc.update("UPDATE listings SET status = 'SUSPENDED' WHERE id = ?", suspended);
 		assertThat(statusOf(draft)).isEqualTo("DRAFT");
 		assertThat(statusOf(archived)).isEqualTo("ARCHIVED");
@@ -137,8 +124,6 @@ class ListingDiscoveryIntegrationTest {
 		this.listingRepository.deleteAllInBatch();
 		this.userRepository.deleteAllInBatch();
 	}
-
-	// ---- Basic discovery ---------------------------------------------------------------
 
 	@Test
 	void publicDiscoveryReturnsOnlyPublishedListingsWithoutAuthentication() throws Exception {
@@ -161,16 +146,12 @@ class ListingDiscoveryIntegrationTest {
 		}
 	}
 
-	// ---- Search ------------------------------------------------------------------------
-
 	@Test
 	void searchMatchesTitleShortPitchAndDescription() throws Exception {
-		assertThat(titles("search=Reconciliation")).containsExactly(P1); // title
-		assertThat(titles("search=moonshot")).containsExactly(P2); // short pitch
-		assertThat(titles("search=zebra-striped")).containsExactly(P3); // description
-		// "invoice" is in P1's title and P4's short pitch; NEWEST order.
+		assertThat(titles("search=Reconciliation")).containsExactly(P1);
+		assertThat(titles("search=moonshot")).containsExactly(P2);
+		assertThat(titles("search=zebra-striped")).containsExactly(P3);
 		assertThat(titles("search=invoice")).containsExactly(P4, P1);
-		// A phrase is matched as one piece of text.
 		assertThat(titles("search=" + encode("invoice reconciliation"))).containsExactly(P1);
 		assertThat(titles("search=" + encode("reconciliation invoice"))).isEmpty();
 	}
@@ -213,18 +194,14 @@ class ListingDiscoveryIntegrationTest {
 
 	@Test
 	void searchInputIsTreatedAsPlainText() throws Exception {
-		// LIKE wildcards match literally, not "anything".
 		assertThat(titles("search=" + encode("%"))).isEmpty();
 		assertThat(titles("search=" + encode("_"))).isEmpty();
 		assertThat(titles("search=" + encode("!"))).isEmpty();
 		assertThat(titles("search=" + encode("' OR '1'='1"))).isEmpty();
 		assertThat(titles("search=" + encode("x') OR 1=1 --"))).isEmpty();
-		// A hyphen and a dot are ordinary characters.
 		assertThat(titles("search=" + encode("round-ups"))).containsExactly(P6);
 		assertThat(titles("search=" + encode("faster."))).containsExactly(P1);
 	}
-
-	// ---- Filters -----------------------------------------------------------------------
 
 	@Test
 	void assetTypeFilter() throws Exception {
@@ -245,7 +222,6 @@ class ListingDiscoveryIntegrationTest {
 		assertThat(titles("category=FINTECH")).containsExactly(P6, P4, P1);
 		assertThat(titles("category=EDTECH")).containsExactly(P2);
 		assertThat(titles("category=SAAS")).containsExactly(P5);
-		// Valid category without published listings: 200 with an empty page, not 404.
 		discover("category=AI").andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
 	}
 
@@ -275,16 +251,12 @@ class ListingDiscoveryIntegrationTest {
 		assertThat(titles("category=FINTECH&marketplaceMode=ACQUIRE")).containsExactly(P1);
 		assertThat(titles("assetType=MVP&category=SAAS&stage=MVP")).containsExactly(P5);
 		assertThat(titles("category=FINTECH&stage=LIVE&search=savings")).containsExactly(P6);
-		// Each condition alone matches something, together nothing.
 		assertThat(titles("assetType=MVP&marketplaceMode=COLLABORATE&category=FINTECH&search=invoice")).isEmpty();
 		assertThat(titles("category=HEALTHTECH&marketplaceMode=COLLABORATE")).isEmpty();
 	}
 
-	// ---- Sorting -----------------------------------------------------------------------
-
 	@Test
 	void newestIsTheDefaultAndOrdersByPublishedAtDescendingThenIdDescending() throws Exception {
-		// P5 and P6 share publishedAt: the higher id (P6) comes first.
 		assertThat(titles("sort=NEWEST")).containsExactly(P6, P5, P4, P3, P2, P1);
 		assertThat(titles("")).containsExactly(P6, P5, P4, P3, P2, P1);
 	}
@@ -296,13 +268,11 @@ class ListingDiscoveryIntegrationTest {
 
 	@Test
 	void updatedOrdersByUpdatedAtDescendingThenIdDescending() throws Exception {
-		// P4 and P5 share updatedAt: the higher id (P5) comes first.
 		assertThat(titles("sort=UPDATED")).containsExactly(P1, P3, P5, P4, P6, P2);
 	}
 
 	@Test
 	void priceSortsPutUnpricedListingsLastAndBreakTiesByNewest() throws Exception {
-		// P3 and P5 share a price: newer publishedAt (P5) first. P6 and P2 have no price.
 		assertThat(titles("sort=PRICE_LOW")).containsExactly(P5, P3, P1, P4, P6, P2);
 		assertThat(titles("sort=PRICE_HIGH")).containsExactly(P4, P1, P5, P3, P6, P2);
 	}
@@ -313,8 +283,6 @@ class ListingDiscoveryIntegrationTest {
 		assertThat(titles("category=FINTECH&sort=OLDEST")).containsExactly(P1, P4, P6);
 		assertThat(titles("marketplaceMode=COLLABORATE&sort=PRICE_HIGH")).containsExactly(P4, P5, P6, P2);
 	}
-
-	// ---- Pagination --------------------------------------------------------------------
 
 	@Test
 	void defaultPageSizeIs12() throws Exception {
@@ -339,11 +307,9 @@ class ListingDiscoveryIntegrationTest {
 		assertThat(titles("page=0&size=4")).containsExactly(P6, P5, P4, P3);
 		assertThat(titles("page=1&size=4")).containsExactly(P2, P1);
 		discover("page=1&size=4").andExpect(jsonPath("$.first").value(false)).andExpect(jsonPath("$.last").value(true));
-		// Paging applies after filtering.
 		assertThat(titles("marketplaceMode=COLLABORATE&page=1&size=2")).containsExactly(P4, P2);
 		discover("marketplaceMode=COLLABORATE&page=1&size=2").andExpect(jsonPath("$.totalElements").value(4))
 			.andExpect(jsonPath("$.totalPages").value(2));
-		// Beyond the last page: 200 with an empty page.
 		discover("page=5&size=4").andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
 	}
 
@@ -356,8 +322,6 @@ class ListingDiscoveryIntegrationTest {
 		discover("size=50").andExpect(status().isOk());
 		discover("page=10000").andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
 	}
-
-	// ---- Data exposure -----------------------------------------------------------------
 
 	@Test
 	void cardsContainOnlyBrowsingFieldsAndNoPrivateData() throws Exception {
@@ -390,8 +354,6 @@ class ListingDiscoveryIntegrationTest {
 			.doesNotContain("Machine learning for finance teams.");
 	}
 
-	// ---- Regression --------------------------------------------------------------------
-
 	@Test
 	void publicDetailStillWorksForDiscoveredListings() throws Exception {
 		String slug = JsonPath.read(discover("search=zebra").andReturn().getResponse().getContentAsString(),
@@ -402,13 +364,6 @@ class ListingDiscoveryIntegrationTest {
 			.andExpect(jsonPath("$.description").value("Built around a zebra-striped calendar view."));
 	}
 
-	// ---- Helpers ------------------------------------------------------------------------
-
-	/**
-	 * GET /listings with the given form-encoded query ({@code a=1&b=x+y}). Values are decoded
-	 * here and passed as request parameters, exactly as a servlet container would see them
-	 * (MockMvc's own URI parsing would keep a {@code +} literally).
-	 */
 	private ResultActions discover(String query) throws Exception {
 		MockHttpServletRequestBuilder request = get(LISTINGS);
 		if (!query.isEmpty()) {
@@ -447,13 +402,11 @@ class ListingDiscoveryIntegrationTest {
 		}
 		long id = createFrom(token, body);
 		publish(token, id);
-		// Pin timestamps (stored as UTC wall-clock time) so orderings are deterministic.
 		this.jdbc.update("UPDATE listings SET published_at = ?, updated_at = ? WHERE id = ?",
 				LocalDateTime.parse(publishedAt), LocalDateTime.parse(updatedAt), id);
 		this.ids.put(title, id);
 	}
 
-	// A hidden listing matching the MVP + COLLABORATE + FINTECH + LIVE filters.
 	private long create(String token, String title, String description, String price) throws Exception {
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("title", title);

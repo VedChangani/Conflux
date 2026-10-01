@@ -9,10 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The authenticated user's own profile. Requires a bearer token; always acts on the
- * token's user.
- */
 @RestController
 @RequestMapping(ProfileController.BASE_PATH)
 public class ProfileController {

@@ -51,13 +51,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * HTTP behaviour of conversations and messages: full context, real security filter chain,
- * Flyway-migrated H2 database. Fixture, all through the real endpoints: Bob's interest in
- * Alice's listing and Charlie's interest in Bob's listing are ACCEPTED (each with its
- * conversation); Charlie's interest in Alice's listing is PENDING; Bob's interest in
- * Alice's second listing is REJECTED; Charlie's is WITHDRAWN.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -155,7 +148,6 @@ class ConversationApiIntegrationTest {
 		this.conversationCB = conversationOf(this.charlieToBob);
 	}
 
-	// Everything references users and listings, so it is deleted first, newest tables first.
 	@AfterEach
 	void cleanDatabase() {
 		for (String table : new String[] { "messages", "conversations", "connections", "saved_listings", "listings",
@@ -163,8 +155,6 @@ class ConversationApiIntegrationTest {
 			this.jdbc.update("DELETE FROM " + table);
 		}
 	}
-
-	// ---- Conversation creation ------------------------------------------------------------
 
 	@Test
 	void acceptingAConnectionCreatesExactlyOneConversationForIt() throws Exception {
@@ -182,7 +172,6 @@ class ConversationApiIntegrationTest {
 			.andExpect(jsonPath("$.otherParticipant.username").value("alice"))
 			.andExpect(jsonPath("$.lastMessagePreview").doesNotExist())
 			.andExpect(jsonPath("$.lastMessageAt").doesNotExist());
-		// Accepting again does not create another one.
 		accept(this.aliceToken, accepted).andExpect(status().isConflict());
 		assertThat(conversationCount(accepted)).isEqualTo(1);
 	}
@@ -249,7 +238,6 @@ class ConversationApiIntegrationTest {
 				for (Future<Integer> result : results) {
 					statuses.add(result.get(30, TimeUnit.SECONDS));
 				}
-				// Exactly one transition wins; every other request sees its committed result.
 				assertThat(statuses).filteredOn(s -> s == 200 || s == 204).hasSize(1);
 				assertThat(statuses).filteredOn(s -> s == 409).hasSize(5);
 			}
@@ -272,7 +260,6 @@ class ConversationApiIntegrationTest {
 
 		assertThat(first).isEqualTo(this.conversationAB).isEqualTo(second);
 		assertThat(conversationCount(this.bobToAlice)).isEqualTo(1);
-		// Never for a connection that is not accepted.
 		assertThatIllegalStateException()
 			.isThrownBy(() -> this.transactionTemplate.execute(status -> this.conversationService
 				.createFor(this.connectionRepository.findById(this.charlieToAlicePending).orElseThrow())));
@@ -285,8 +272,6 @@ class ConversationApiIntegrationTest {
 			.andExpect(status().isMethodNotAllowed());
 		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM conversations", Long.class)).isEqualTo(2);
 	}
-
-	// ---- Conversation access -------------------------------------------------------------
 
 	@Test
 	void bothParticipantsCanViewAConversationRelativeToThemselves() throws Exception {
@@ -339,16 +324,12 @@ class ConversationApiIntegrationTest {
 		assertThat(conversationIds(this.bobToken, "")).containsExactlyInAnyOrder(this.conversationAB,
 				this.conversationCB);
 		assertThat(conversationIds(this.charlieToken, "")).containsExactly(this.conversationCB);
-		// User ids in the query cannot select someone else's conversations.
 		assertThat(conversationIds(this.charlieToken, "userId=" + this.alice.getId())).containsExactly(this.conversationCB);
 
-		// Bob is the requester in one and the owner in the other: "other participant" follows him.
 		String bobs = perform(get(CONVERSATIONS), this.bobToken).andReturn().getResponse().getContentAsString();
 		List<String> others = JsonPath.read(bobs, "$.content[*].otherParticipant.username");
 		assertThat(others).containsExactlyInAnyOrder("alice", "charlie");
 	}
-
-	// ---- Sending messages ------------------------------------------------------------------
 
 	@Test
 	void participantSendsAMessageAsThemselves() throws Exception {
@@ -425,16 +406,12 @@ class ConversationApiIntegrationTest {
 		sendRaw(this.bobToken, this.conversationAB, "{ not json").andExpect(status().isBadRequest());
 		assertThat(messageCount()).isZero();
 
-		// The limit applies to the trimmed text.
 		send(this.bobToken, this.conversationAB, "  " + "y".repeat(5_000) + " \n").andExpect(status().isCreated())
 			.andExpect(jsonPath("$.content").value("y".repeat(5_000)));
 	}
 
-	// ---- Accepted-connection rule ----------------------------------------------------------
-
 	@Test
 	void onlyConversationsOfAcceptedConnectionsCanBeMessaged() throws Exception {
-		// Conversations cannot exist for these through the API; insert them to prove the send check itself.
 		for (long connection : new long[] { this.charlieToAlicePending, this.bobToAlice2Rejected,
 				this.charlieToAlice2Withdrawn }) {
 			this.jdbc.update("INSERT INTO conversations (connection_id, created_at, updated_at) "
@@ -453,8 +430,6 @@ class ConversationApiIntegrationTest {
 		send(this.bobToken, this.conversationCB, "Owner: fine").andExpect(status().isCreated());
 	}
 
-	// ---- Message listing -------------------------------------------------------------------
-
 	@Test
 	void messagesAreListedNewestFirstWithDeterministicTiesAndPagination() throws Exception {
 		long m1 = sentId(this.bobToken, this.conversationAB, "one");
@@ -465,7 +440,7 @@ class ConversationApiIntegrationTest {
 		Instant base = Instant.parse("2026-08-01T10:00:00Z");
 		setMessageTime(m1, base);
 		setMessageTime(m2, base.plusSeconds(10));
-		setMessageTime(m3, base.plusSeconds(10)); // tie with m2: higher id first
+		setMessageTime(m3, base.plusSeconds(10));
 		setMessageTime(m4, base.plusSeconds(20));
 
 		for (String token : new String[] { this.bobToken, this.aliceToken }) {
@@ -496,8 +471,6 @@ class ConversationApiIntegrationTest {
 			.andExpect(jsonPath("$.totalElements").value(0));
 	}
 
-	// ---- Conversation ordering -------------------------------------------------------------
-
 	@Test
 	void conversationsAreOrderedByLatestActivityThenIdWithPreviews() throws Exception {
 		accept(this.aliceToken, this.charlieToAlicePending).andExpect(status().isOk());
@@ -508,16 +481,15 @@ class ConversationApiIntegrationTest {
 		long conversationAB3 = conversationOf(bobToAlice3);
 
 		setConversationCreatedAt(this.conversationAB, Instant.parse("2026-09-01T00:00:00Z"));
-		setConversationCreatedAt(conversationCA, Instant.parse("2026-09-05T00:00:00Z")); // no messages
+		setConversationCreatedAt(conversationCA, Instant.parse("2026-09-05T00:00:00Z"));
 		setConversationCreatedAt(conversationAB3, Instant.parse("2026-09-02T00:00:00Z"));
 		long early = sentId(this.bobToken, this.conversationAB, "Earlier message");
 		long latestAB = sentId(this.aliceToken, this.conversationAB, "Latest message in AB");
 		long longOne = sentId(this.bobToken, conversationAB3, "L".repeat(200));
 		setMessageTime(early, Instant.parse("2026-09-08T00:00:00Z"));
 		setMessageTime(latestAB, Instant.parse("2026-09-10T00:00:00Z"));
-		setMessageTime(longOne, Instant.parse("2026-09-10T00:00:00Z")); // tie with AB: higher conversation id first
+		setMessageTime(longOne, Instant.parse("2026-09-10T00:00:00Z"));
 
-		// AB3 and AB share the latest activity (AB3 has the higher id); CA has no messages (its creation).
 		assertThat(conversationIds(this.aliceToken, "")).containsExactly(conversationAB3, this.conversationAB,
 				conversationCA);
 		String page = perform(get(CONVERSATIONS), this.aliceToken).andExpect(status().isOk())
@@ -546,8 +518,6 @@ class ConversationApiIntegrationTest {
 		}
 	}
 
-	// ---- Listing lifecycle -----------------------------------------------------------------
-
 	@Test
 	void conversationsSurviveArchivedAndSuspendedListings() throws Exception {
 		send(this.bobToken, this.conversationAB, "Before archive").andExpect(status().isCreated());
@@ -558,16 +528,12 @@ class ConversationApiIntegrationTest {
 		detail(this.bobToken, this.conversationAB).andExpect(status().isOk());
 		detail(this.charlieToken, this.conversationCB).andExpect(status().isOk());
 		messages(this.aliceToken, this.conversationAB, "").andExpect(jsonPath("$.totalElements").value(1));
-		// Still usable: messaging depends on the accepted connection, not on listing visibility.
 		send(this.aliceToken, this.conversationAB, "After archive").andExpect(status().isCreated());
 		send(this.charlieToken, this.conversationCB, "After suspension").andExpect(status().isCreated());
 
-		// New interest still needs a published listing.
 		perform(post(LISTINGS + "/" + this.aliceListing + "/interest"), this.charlieToken)
 			.andExpect(status().isNotFound());
 	}
-
-	// ---- Security / data exposure --------------------------------------------------------
 
 	@Test
 	void messageContentNeverAppearsInLogs(CapturedOutput output) throws Exception {
@@ -602,8 +568,6 @@ class ConversationApiIntegrationTest {
 			.andExpect(jsonPath("$.content[0].receiver").doesNotExist());
 	}
 
-	// ---- Regression ------------------------------------------------------------------------
-
 	@Test
 	void connectionsSavedListingsDiscoveryListingsAndAuthStillWork() throws Exception {
 		perform(get(CONNECTIONS + "/sent"), this.bobToken).andExpect(status().isOk())
@@ -622,8 +586,6 @@ class ConversationApiIntegrationTest {
 		detail(this.bobToken, this.conversationAB).andExpect(jsonPath("$.listing.title").value("Alice opportunity, renamed"));
 		perform(get("/api/v1/auth/me"), this.charlieToken).andExpect(jsonPath("$.username").value("charlie"));
 	}
-
-	// ---- Helpers ------------------------------------------------------------------------
 
 	private long interest(String token, long listingId) throws Exception {
 		String response = perform(post(LISTINGS + "/" + listingId + "/interest"), token).andExpect(status().isCreated())

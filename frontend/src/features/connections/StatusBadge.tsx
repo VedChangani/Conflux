@@ -1,9 +1,5 @@
 import { statusLabel } from './labels'
 
-/**
- * A connection's status as text plus an icon; the colour only reinforces it. `data-status`
- * drives the styling.
- */
 export function StatusBadge({ status }: { status: string }) {
   return (
     <span className="status-badge" data-status={status.toLowerCase()}>

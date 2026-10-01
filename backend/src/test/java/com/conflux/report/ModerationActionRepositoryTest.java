@@ -27,10 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-/**
- * V9 schema, {@link ModerationAction} and {@link ModerationActionRepository} against the
- * Flyway-migrated H2 database.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
@@ -96,7 +92,6 @@ class ModerationActionRepositoryTest {
 			.containsEntry("pk_moderation_actions", "PRIMARY KEY")
 			.containsEntry("fk_moderation_actions_actor", "FOREIGN KEY")
 			.containsEntry("fk_moderation_actions_report", "FOREIGN KEY");
-		// Exactly the actor and report foreign keys: no polymorphic key to the target.
 		assertThat(nativeMap("SELECT constraint_name, delete_rule FROM information_schema.referential_constraints "
 				+ "WHERE constraint_schema = SCHEMA() AND constraint_name LIKE 'fk_moderation_actions_%'"))
 			.containsOnly(Map.entry("fk_moderation_actions_actor", "RESTRICT"),
@@ -184,7 +179,6 @@ class ModerationActionRepositoryTest {
 
 	@Test
 	void theLogIsAppendOnly() {
-		// No public mutators on the entity, no delete or update methods on the repository.
 		assertThat(Arrays.stream(ModerationAction.class.getDeclaredMethods())
 			.filter(method -> Modifier.isPublic(method.getModifiers()))
 			.map(Method::getName)).allMatch(name -> name.startsWith("get"));

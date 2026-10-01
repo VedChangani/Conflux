@@ -27,7 +27,6 @@ const DONE: Record<AdminAction, string> = {
 
 const TARGET_NOUN: Record<ReportDetail['targetType'], string> = { USER: 'user', LISTING: 'listing', MESSAGE: 'message' }
 
-/** `/admin/reports/:id`: one report, keyed so switching reports starts afresh. */
 export function ReportDetailRoute() {
   const { id: rawId } = useParams()
   const id = parseId(rawId)
@@ -37,13 +36,6 @@ export function ReportDetailRoute() {
   return <ReportDetailPanel key={id} id={id} />
 }
 
-/**
- * One report with everything `ReportDetailResponse` holds: the report, its reporter and
- * reviewer, and the current state of the reported user, listing or message. An OPEN report can
- * be resolved or dismissed; a user or listing can be suspended or restored. After an action the
- * panel shows what the backend returned (decisions) or reads the report again (suspend and
- * restore answer 204), and the queue reloads; the rest of the app is untouched.
- */
 function ReportDetailPanel({ id }: { id: number }) {
   const { reloadQueue, queueSearch } = useAdminOutlet()
   const { account, refreshAccount } = useAuth()
@@ -51,7 +43,6 @@ function ReportDetailPanel({ id }: { id: number }) {
   const load = useCallback((signal: AbortSignal) => adminApi.report(id, signal), [id])
   const result = useAsync(load)
 
-  // The report as last known from the backend: a load, or the response to a decision.
   const [report, setReport] = useState<ReportDetail | null>(null)
   const [loaded, setLoaded] = useState<ReportDetail | undefined>(undefined)
   if (result.data !== loaded) {
@@ -67,7 +58,6 @@ function ReportDetailPanel({ id }: { id: number }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const outcomeRef = useRef<HTMLParagraphElement>(null)
   const focusOutcome = useRef(false)
-  // Opened from the queue: move focus here once loaded (on small screens the queue is hidden).
   const focusOnLoad = useRef(Boolean((location.state as { focusDetail?: unknown } | null)?.focusDetail))
 
   const errorKind = result.status === 'error' ? adminErrorKind(result.error) : null
@@ -86,7 +76,6 @@ function ReportDetailPanel({ id }: { id: number }) {
     }
   }, [pending])
 
-  // A 403 means this account is no longer an active admin: re-read it so the admin area closes.
   useEffect(() => {
     if (errorKind === 'forbidden') {
       void refreshAccount()
@@ -140,7 +129,6 @@ function ReportDetailPanel({ id }: { id: number }) {
   function moderate(action: TargetAction, targetId: number) {
     return async () => {
       await adminApi.moderate(action, targetId)
-      // 204 either way (also when nothing changed): read the report again for the real state.
       result.retry()
     }
   }
@@ -339,7 +327,6 @@ interface TargetActionsProps {
   open: (action: AdminAction) => (event: MouseEvent<HTMLButtonElement>) => void
 }
 
-/** Suspend or restore, offered only where the backend's lifecycle allows it. */
 function TargetActions({ report, busy, open }: TargetActionsProps) {
   if (report.target === null || report.targetType === 'MESSAGE') {
     return null

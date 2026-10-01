@@ -7,11 +7,6 @@ import { parseId } from '../lib/ids'
 import { readPageParam } from '../lib/pageParam'
 import { useAsync } from '../lib/useAsync'
 
-/**
- * `/messages`: the conversation list, plus the open conversation (`/messages/:id`).
- * Wide screens show both side by side; small screens show one at a time, as separate
- * routes (`data-pane` says which). Rendered behind {@link ProtectedRoute}.
- */
 export function MessagesPage() {
   const params = useParams()
   const [searchParams] = useSearchParams()
@@ -55,7 +50,6 @@ export function MessagesPage() {
   )
 }
 
-/** `/messages` on a wide screen: the space next to the list before a conversation is chosen. */
 export function MessagesIndex() {
   return (
     <div className="messages-placeholder">

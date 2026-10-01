@@ -39,13 +39,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Reporting and reactive trust &amp; safety over HTTP: full context, real security filter
- * chain, Flyway-migrated H2 database. Alice is ADMIN; Bob and Charlie are users; Dave is
- * suspended. Bob has a published, a draft, an archived and a (moderator-)suspended listing;
- * Charlie has a published one. Charlie's interest in Bob's listing is accepted and both have
- * sent a message. Everything is set up through the real endpoints.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -151,8 +144,6 @@ class TrustAndSafetyIntegrationTest {
 		}
 	}
 
-	// ---- Report creation -----------------------------------------------------------------
-
 	@Test
 	void userReportsAPublishedListingAsThemselves() throws Exception {
 		String response = report(this.charlieToken, "LISTING", this.bobPublished, "SCAM_OR_FRAUD",
@@ -190,7 +181,6 @@ class TrustAndSafetyIntegrationTest {
 			.andExpect(jsonPath("$.targetType").value("USER"));
 		report(this.charlieToken, "MESSAGE", this.bobMessage, "HARASSMENT", "Rude.").andExpect(status().isCreated())
 			.andExpect(jsonPath("$.targetType").value("MESSAGE"));
-		// The listing owner is a participant too.
 		report(this.bobToken, "MESSAGE", this.charlieMessage, "SPAM", null).andExpect(status().isCreated());
 		assertThat(reportCount()).isEqualTo(3);
 	}
@@ -237,7 +227,6 @@ class TrustAndSafetyIntegrationTest {
 		assertRejected(b -> b.put("details", "d".repeat(1_001)), "details");
 		assertThat(reportCount()).isZero();
 
-		// The limit applies after trimming.
 		report(this.charlieToken, "LISTING", this.bobPublished, "OTHER", "  " + "d".repeat(1_000) + "  ")
 			.andExpect(status().isCreated());
 		assertThat(this.jdbc.queryForObject("SELECT details FROM reports", String.class)).isEqualTo("d".repeat(1_000));
@@ -258,7 +247,6 @@ class TrustAndSafetyIntegrationTest {
 				.andExpect(status().isNotFound())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 		}
-		// A message outside your conversations looks exactly like a missing one.
 		String missing = report(this.aliceToken, "MESSAGE", 999_999_999L, "SPAM", null).andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.detail").value("Message not found."))
 			.andReturn()
@@ -295,13 +283,11 @@ class TrustAndSafetyIntegrationTest {
 			.getContentAsString();
 		assertThat(duplicate).doesNotContain("uk_reports").doesNotContain("SQL");
 
-		// Also after the first report has been reviewed.
 		long id = this.jdbc.queryForObject("SELECT id FROM reports", Long.class);
 		perform(post(ADMIN_REPORTS + "/" + id + "/dismiss"), this.aliceToken).andExpect(status().isOk());
 		report(this.charlieToken, "LISTING", this.bobPublished, "OTHER", null).andExpect(status().isConflict());
 		assertThat(reportCount()).isEqualTo(1);
 
-		// Someone else may still report it.
 		report(this.aliceToken, "LISTING", this.bobPublished, "SPAM", null).andExpect(status().isCreated());
 	}
 
@@ -326,8 +312,6 @@ class TrustAndSafetyIntegrationTest {
 		assertThat(publicSlugs()).contains(slugOf(this.bobPublished));
 		this.mockMvc.perform(get("/api/v1/users/bob")).andExpect(status().isOk());
 	}
-
-	// ---- Admin access --------------------------------------------------------------------
 
 	@Test
 	void normalUsersGet403AndAnonymousUsers401OnEveryAdminEndpoint() throws Exception {
@@ -365,8 +349,6 @@ class TrustAndSafetyIntegrationTest {
 		assertThat(listingStatus(this.charliePublished)).isEqualTo("PUBLISHED");
 	}
 
-	// ---- Report queue ----------------------------------------------------------------------
-
 	@Test
 	void queueDefaultsToOpenAndFiltersPaginatesAndOrders() throws Exception {
 		long r1 = reportId(this.charlieToken, "LISTING", this.bobPublished);
@@ -378,7 +360,7 @@ class TrustAndSafetyIntegrationTest {
 		Instant base = Instant.parse("2026-10-01T08:00:00Z");
 		setCreatedAt(r1, base.plusSeconds(60));
 		setCreatedAt(r2, base);
-		setCreatedAt(r3, base.plusSeconds(60)); // same as r1: higher id first
+		setCreatedAt(r3, base.plusSeconds(60));
 		setCreatedAt(r4, base.plusSeconds(120));
 		perform(post(ADMIN_REPORTS + "/" + resolved + "/resolve"), this.aliceToken).andExpect(status().isOk());
 		perform(post(ADMIN_REPORTS + "/" + dismissed + "/dismiss"), this.aliceToken).andExpect(status().isOk());
@@ -400,7 +382,6 @@ class TrustAndSafetyIntegrationTest {
 		assertThat(ids(queue("page=1&size=3"))).containsExactly(r2);
 		queue("").andExpect(jsonPath("$.size").value(20));
 
-		// Summaries carry no details, notes, people or target content.
 		assertThat(JSON.readTree(first).get("content").get(0).propertyNames()).containsExactlyInAnyOrder("id",
 				"targetType", "targetId", "reason", "status", "createdAt", "reviewedAt");
 		queue("status=RESOLVED").andExpect(jsonPath("$.content[0].reviewedAt").exists());
@@ -416,8 +397,6 @@ class TrustAndSafetyIntegrationTest {
 			.andExpect(jsonPath("$.content.length()").value(0))
 			.andExpect(jsonPath("$.totalElements").value(0));
 	}
-
-	// ---- Report detail -----------------------------------------------------------------------
 
 	@Test
 	void adminSeesReporterAndTargetDetailsButNoEmailsOrPasswords() throws Exception {
@@ -463,7 +442,6 @@ class TrustAndSafetyIntegrationTest {
 			assertNoPrivateData(response);
 		}
 
-		// Admins still see content the public no longer can.
 		perform(post(ADMIN + "/listings/" + this.bobPublished + "/suspend"), this.aliceToken)
 			.andExpect(status().isNoContent());
 		perform(get(ADMIN_REPORTS + "/" + listingReport), this.aliceToken)
@@ -471,8 +449,6 @@ class TrustAndSafetyIntegrationTest {
 		perform(get(ADMIN_REPORTS + "/999999999"), this.aliceToken).andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.detail").value("Report not found."));
 	}
-
-	// ---- Resolution ------------------------------------------------------------------------
 
 	@Test
 	void adminResolvesAnOpenReportWithANote() throws Exception {
@@ -502,7 +478,6 @@ class TrustAndSafetyIntegrationTest {
 			.containsEntry("resolution_note", "Reviewed and found the report valid.");
 		assertThat(this.jdbc.queryForObject("SELECT reviewed_at FROM reports WHERE id = ?", LocalDateTime.class, id))
 			.isEqualTo(LocalDateTime.ofInstant(reviewedAt, ZoneOffset.UTC));
-		// Resolving does not moderate anything by itself.
 		assertThat(listingStatus(this.bobPublished)).isEqualTo("PUBLISHED");
 	}
 
@@ -551,8 +526,6 @@ class TrustAndSafetyIntegrationTest {
 		assertThat(reportStatus(open)).isEqualTo("OPEN");
 	}
 
-	// ---- User moderation -----------------------------------------------------------------
-
 	@Test
 	void suspendingAUserHidesThemPubliclyAndRestoringBringsEverythingBack() throws Exception {
 		String bobSlug = slugOf(this.bobPublished);
@@ -565,18 +538,15 @@ class TrustAndSafetyIntegrationTest {
 			.andExpect(status().isNoContent());
 		assertThat(userStatus(this.bob)).isEqualTo("SUSPENDED");
 
-		// Hidden publicly, without touching his listings.
 		this.mockMvc.perform(get("/api/v1/users/bob")).andExpect(status().isNotFound());
 		assertThat(publicSlugs()).doesNotContain(bobSlug).contains(slugOf(this.charliePublished));
 		this.mockMvc.perform(get(LISTINGS + "/" + bobSlug)).andExpect(status().isNotFound());
 		this.mockMvc.perform(get(LISTINGS).param("search", "Bob")).andExpect(jsonPath("$.totalElements").value(0));
 		assertThat(listingStatus(this.bobPublished)).isEqualTo("PUBLISHED");
-		// Nobody can act on his hidden listing either.
 		perform(post(LISTINGS + "/" + this.bobPublished + "/save"), this.charlieToken).andExpect(status().isNotFound());
 		report(this.charlieToken, "LISTING", this.bobPublished, "SPAM", null).andExpect(status().isNotFound());
 		report(this.charlieToken, "USER", this.bob.getId(), "SPAM", null).andExpect(status().isNotFound());
 
-		// Private history stays, and stays readable for the other participant.
 		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM connections", Long.class)).isEqualTo(1);
 		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM conversations", Long.class)).isEqualTo(1);
 		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM messages", Long.class)).isEqualTo(2);
@@ -584,7 +554,6 @@ class TrustAndSafetyIntegrationTest {
 			.andExpect(jsonPath("$.status").value("ACCEPTED"));
 		perform(get("/api/v1/conversations/" + this.conversation + "/messages"), this.charlieToken)
 			.andExpect(jsonPath("$.totalElements").value(2));
-		// Bob can read but not write.
 		perform(get("/api/v1/conversations/" + this.conversation + "/messages"), this.bobToken)
 			.andExpect(status().isOk());
 		perform(post("/api/v1/conversations/" + this.conversation + "/messages").contentType(MediaType.APPLICATION_JSON)
@@ -602,7 +571,6 @@ class TrustAndSafetyIntegrationTest {
 		this.mockMvc.perform(get("/api/v1/users/bob")).andExpect(status().isOk());
 		assertThat(publicSlugs()).contains(bobSlug);
 		this.mockMvc.perform(get(LISTINGS + "/" + bobSlug)).andExpect(status().isOk());
-		// Moderator-suspended, draft and archived listings stay hidden: only eligible listings come back.
 		assertThat(publicSlugs()).doesNotContain(slugOf(this.bobSuspended), slugOf(this.bobDraft), slugOf(this.bobArchived));
 	}
 
@@ -616,7 +584,6 @@ class TrustAndSafetyIntegrationTest {
 			perform(post(ADMIN + "/users/999999999/" + action), this.aliceToken).andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.detail").value("User not found."));
 		}
-		// Restoring an active user is a no-op.
 		perform(post(ADMIN + "/users/" + this.charlie.getId() + "/restore"), this.aliceToken)
 			.andExpect(status().isNoContent());
 		assertThat(userStatus(this.charlie)).isEqualTo("ACTIVE");
@@ -624,8 +591,6 @@ class TrustAndSafetyIntegrationTest {
 			.andExpect(status().isNoContent());
 		assertThat(userStatus(this.dave)).isEqualTo("ACTIVE");
 	}
-
-	// ---- Listing moderation --------------------------------------------------------------
 
 	@Test
 	void suspendingAListingHidesItAndRestoringRepublishesIt() throws Exception {
@@ -640,7 +605,6 @@ class TrustAndSafetyIntegrationTest {
 		assertThat(listingStatus(this.charliePublished)).isEqualTo("SUSPENDED");
 		assertThat(publicSlugs()).doesNotContain(slug);
 		this.mockMvc.perform(get(LISTINGS + "/" + slug)).andExpect(status().isNotFound());
-		// The owner cannot undo it.
 		perform(post(LISTINGS + "/" + this.charliePublished + "/publish"), this.charlieToken)
 			.andExpect(status().isConflict());
 
@@ -671,8 +635,6 @@ class TrustAndSafetyIntegrationTest {
 		}
 	}
 
-	// ---- Saved listings --------------------------------------------------------------------
-
 	@Test
 	void savesOfASuspendedOwnersListingAreHiddenButKept() throws Exception {
 		perform(post(LISTINGS + "/" + this.bobPublished + "/save"), this.charlieToken).andExpect(status().isNoContent());
@@ -687,8 +649,6 @@ class TrustAndSafetyIntegrationTest {
 			.andExpect(status().isNoContent());
 		assertThat(savedIds(this.charlieToken)).containsExactly(this.bobPublished);
 	}
-
-	// ---- Regression ------------------------------------------------------------------------
 
 	@Test
 	void selfPublishingAndTheRestOfTheProductStillWork() throws Exception {
@@ -705,25 +665,20 @@ class TrustAndSafetyIntegrationTest {
 			.getResponse()
 			.getContentAsString(), "$.accessToken");
 
-		// Publishing is immediate: no approval, no report needed.
 		long listing = published(erin, "Erin's idea");
 		assertThat(publicSlugs()).contains(slugOf(listing));
 		perform(put(LISTINGS + "/" + listing).contentType(MediaType.APPLICATION_JSON)
 			.content(JSON.writeValueAsString(listingBody("Erin's idea, edited"))), erin)
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("PUBLISHED"));
-		// Connections, conversations, profiles still work.
 		long connection = idOf(perform(post(LISTINGS + "/" + listing + "/interest"), this.charlieToken)
 			.andExpect(status().isCreated()));
 		perform(post("/api/v1/connections/" + connection + "/accept"), erin).andExpect(status().isOk());
 		perform(get("/api/v1/conversations"), erin).andExpect(jsonPath("$.totalElements").value(1));
 		perform(get("/api/v1/profile"), erin).andExpect(jsonPath("$.username").value("erin"));
 		this.mockMvc.perform(get("/api/v1/users/erin")).andExpect(status().isOk());
-		// A normal user still cannot reach admin routes.
 		perform(get(ADMIN_REPORTS), erin).andExpect(status().isForbidden());
 	}
-
-	// ---- Helpers ------------------------------------------------------------------------
 
 	private List<MockHttpServletRequestBuilder> adminRequests(long reportId) {
 		return List.of(get(ADMIN_REPORTS), get(ADMIN_REPORTS + "/" + reportId),

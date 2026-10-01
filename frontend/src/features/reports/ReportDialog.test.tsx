@@ -16,7 +16,6 @@ const dialog = () => screen.getByRole('dialog', { name: 'Report listing' })
 const inDialog = () => within(dialog())
 const reportButton = () => screen.getByRole('button', { name: 'Report listing' })
 
-/** Signed in on Alice's listing, with the report dialog open. */
 async function openReport(handlers: Parameters<typeof mockApi>[0] = {}) {
   setAccessToken('stored-token')
   const api = mockApi({ 'GET /auth/me': () => json(ACCOUNT), [DETAIL]: () => json(listingDetail()), ...handlers })
@@ -41,7 +40,6 @@ describe('Opening the report dialog', () => {
     const panel = dialog()
     expect(panel.getAttribute('aria-modal')).toBe('true')
     expect(reportButton().getAttribute('aria-haspopup')).toBe('dialog')
-    // The page underneath is inert, and the URL has not changed.
     expect(document.querySelector('.app-shell')?.closest('[inert]')).toBeTruthy()
     expect(router.state.location.pathname).toBe('/listings/ledgerly')
     expect(document.body.style.overflow).toBe('hidden')
@@ -163,7 +161,6 @@ describe('Submitting a report', () => {
     choose('Misleading information')
     fireEvent.change(inDialog().getByLabelText('Details (optional)'), { target: { value: '  Revenue claims look invented.  ' } })
     submit()
-    // Repeated clicks and Enter while sending do not send again, and the dialog stays open.
     fireEvent.click(inDialog().getByRole('button', { name: 'Submitting…' }))
     fireEvent.submit(dialog().querySelector('form') as HTMLFormElement)
     fireEvent.keyDown(dialog(), { key: 'Escape' })
@@ -190,7 +187,6 @@ describe('Submitting a report', () => {
       details: 'Revenue claims look invented.',
     })
     expect(report.headers.get('Authorization')).toBe('Bearer stored-token')
-    // No moderation data reaches the page.
     expect(document.body.textContent).not.toContain('OPEN')
     expect(document.body.textContent).not.toContain('900')
 

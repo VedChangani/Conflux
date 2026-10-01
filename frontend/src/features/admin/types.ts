@@ -1,21 +1,16 @@
 import type { ReportReason, ReportTargetType } from '../reports/types'
 
-/** Review state of a report (`ReportStatus`): OPEN → RESOLVED | DISMISSED; both are final. */
 export const REPORT_STATUSES = ['OPEN', 'RESOLVED', 'DISMISSED'] as const
 export type ReportStatus = (typeof REPORT_STATUSES)[number]
 
-/** What the queue shows when no status is chosen; the backend uses the same default. */
 export const DEFAULT_REPORT_STATUS: ReportStatus = 'OPEN'
 
-/** The queue's page sizes: the backend accepts 1–50 and defaults to 20. */
 export const REPORT_PAGE_SIZES = [10, 20, 50] as const
 export const DEFAULT_REPORT_PAGE_SIZE = 20
 export const MAX_REPORT_PAGE_SIZE = 50
 
-/** The backend's limit on the optional note, after trimming (`Report.RESOLUTION_NOTE_MAX_LENGTH`). */
 export const RESOLUTION_NOTE_MAX_LENGTH = 1_000
 
-/** `ReportSummaryResponse`: a queue entry. No details, notes, people or target content. */
 export interface ReportSummary {
   id: number
   targetType: ReportTargetType
@@ -26,7 +21,6 @@ export interface ReportSummary {
   reviewedAt: string | null
 }
 
-/** `ReportDetailResponse.Person`: a public summary, never an email. */
 export interface ReportPerson {
   id: number
   username: string
@@ -36,7 +30,6 @@ export interface ReportPerson {
 export type AdminUserStatus = 'ACTIVE' | 'SUSPENDED'
 export type AdminListingStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'SUSPENDED'
 
-/** `ReportDetailResponse.UserTarget`. */
 export interface UserTarget {
   id: number
   username: string
@@ -49,7 +42,6 @@ export interface UserTarget {
   status: AdminUserStatus
 }
 
-/** `ReportDetailResponse.ListingTarget`. */
 export interface ListingTarget {
   id: number
   slug: string
@@ -60,7 +52,6 @@ export interface ListingTarget {
   owner: ReportPerson | null
 }
 
-/** `ReportDetailResponse.MessageTarget`. */
 export interface MessageTarget {
   id: number
   content: string
@@ -83,10 +74,6 @@ interface ReportDetailBase {
   reviewer: ReportPerson | null
 }
 
-/**
- * `ReportDetailResponse`: the admin view of one report. The target's shape follows
- * `targetType`; it is `null` when the target no longer exists.
- */
 export type ReportDetail = ReportDetailBase &
   (
     | { targetType: 'USER'; target: UserTarget | null }
@@ -94,7 +81,6 @@ export type ReportDetail = ReportDetailBase &
     | { targetType: 'MESSAGE'; target: MessageTarget | null }
   )
 
-/** `ReportDecisionRequest`: the optional note, trimmed; blank is `null`. */
 export interface ReportDecisionRequest {
   resolutionNote: string | null
 }

@@ -22,13 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Reports and their reactive review. Anyone active may report a user, listing or message
- * they can legitimately see; the reporter is always the authenticated user. Submitting a
- * report only records it (OPEN): nothing is moderated automatically. Administrators review
- * the queue and resolve or dismiss reports; moderation actions themselves are separate,
- * explicit admin operations.
- */
 @Service
 public class ReportService {
 
@@ -63,17 +56,6 @@ public class ReportService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	// ---- Reporting ----------------------------------------------------------------------
-
-	/**
-	 * Records an OPEN report by the current user.
-	 * @throws ResponseStatusException 403 for a suspended reporter; 404 if the target is not
-	 * one the reporter can see (a missing or suspended user, a listing that is not publicly
-	 * visible, a message outside the reporter's conversations); 409 for their own account,
-	 * listing or message, or if they already reported this target
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the reporter submitted
-	 * too many reports recently
-	 */
 	@Transactional
 	public ReportResponse create(ReportRequest request) {
 		User reporter = this.userService.currentActiveUser();
@@ -82,7 +64,6 @@ public class ReportService {
 				request.targetId())) {
 			throw alreadyReported();
 		}
-		// Only now, so 403/404/409 answers never become 429.
 		this.rateLimiter.acquire(RateLimitOperation.REPORT_CREATE, reporter.getId().toString());
 		Report report = new Report(reporter, request.targetType(), request.targetId(), request.reason(),
 				request.details());
@@ -90,7 +71,6 @@ public class ReportService {
 			this.reportRepository.saveAndFlush(report);
 		}
 		catch (DataIntegrityViolationException ex) {
-			// A concurrent identical report was stored first.
 			throw alreadyReported();
 		}
 		return ReportResponse.from(report);
@@ -123,11 +103,6 @@ public class ReportService {
 		}
 	}
 
-	// ---- Admin review -------------------------------------------------------------------
-
-	/**
-	 * The admin queue for one status (OPEN when {@code null}), newest first.
-	 */
 	@Transactional(readOnly = true)
 	public PageResponse<ReportSummaryResponse> queue(ReportStatus status, int page, int size) {
 		this.userService.currentActiveAdmin();
@@ -144,31 +119,16 @@ public class ReportService {
 		return ReportDetailResponse.from(report, target(report));
 	}
 
-	/**
-	 * OPEN to RESOLVED, reviewed by the current admin, and recorded as RESOLVE_REPORT.
-	 * @throws ResponseStatusException 404 if missing, 409 unless OPEN
-	 */
 	@Transactional
 	public ReportDetailResponse resolve(Long reportId, ReportDecisionRequest request) {
 		return review(reportId, request, Report::resolve, ModerationActionType.RESOLVE_REPORT);
 	}
 
-	/**
-	 * OPEN to DISMISSED, reviewed by the current admin, and recorded as DISMISS_REPORT.
-	 * @throws ResponseStatusException 404 if missing, 409 unless OPEN
-	 */
 	@Transactional
 	public ReportDetailResponse dismiss(Long reportId, ReportDecisionRequest request) {
 		return review(reportId, request, Report::dismiss, ModerationActionType.DISMISS_REPORT);
 	}
 
-	/**
-	 * Locks the report row and re-reads it before deciding, so two admins deciding the same
-	 * report at once cannot both succeed (the second sees the first decision and gets 409).
-	 * The audit entry is written in the same transaction, only once the decision succeeded.
-	 * The acting admin's ADMIN_MODERATION rate limit (429) is checked after every 403/404/409
-	 * check.
-	 */
 	private ReportDetailResponse review(Long reportId, ReportDecisionRequest request, Decision decision,
 			ModerationActionType actionType) {
 		User admin = this.userService.currentActiveAdmin();
@@ -180,7 +140,6 @@ public class ReportService {
 		catch (ReportStateException ex) {
 			throw conflict(ex.getMessage());
 		}
-		// Shared with the other moderation operations; a 429 rolls the (unflushed) decision back.
 		this.rateLimiter.acquire(RateLimitOperation.ADMIN_MODERATION, admin.getId().toString());
 		this.reportRepository.saveAndFlush(report);
 		this.moderationActionService.recordReview(admin, actionType, report);
@@ -194,13 +153,10 @@ public class ReportService {
 
 	}
 
-	// ---- Helpers --------------------------------------------------------------------
-
 	private Report report(Long reportId) {
 		return this.reportRepository.findWithPeopleById(reportId).orElseThrow(() -> notFound("Report not found."));
 	}
 
-	// One query for the target, whatever its visibility (admins see suspended content too).
 	private ReportDetailResponse.Target target(Report report) {
 		Long id = report.getTargetId();
 		return switch (report.getTargetType()) {

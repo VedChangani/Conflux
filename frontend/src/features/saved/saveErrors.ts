@@ -1,10 +1,5 @@
 import { ApiError } from '../../services/apiClient'
 
-/**
- * A user-facing message for a failed save or unsave. Written here rather than taken from
- * the response, so backend wording never reaches the page. 401 is not covered: callers
- * send the visitor to log in instead.
- */
 export function saveErrorMessage(error: unknown, saving: boolean): string {
   if (error instanceof ApiError) {
     switch (error.status) {

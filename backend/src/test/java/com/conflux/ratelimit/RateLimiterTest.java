@@ -19,16 +19,12 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-/**
- * The limiter itself, with a controllable clock.
- */
 class RateLimiterTest {
 
 	private static final Limit THREE_PER_MINUTE = new Limit(3, Duration.ofMinutes(1));
 
 	private static final Limit HUNDRED_PER_HOUR = new Limit(100, Duration.ofHours(1));
 
-	// Deliberately not 0: the limiter must only rely on differences between readings.
 	private final AtomicLong nanos = new AtomicLong(Long.MAX_VALUE - Duration.ofMinutes(5).toNanos());
 
 	private final RateLimiter limiter = new RateLimiter(properties(100), this.nanos::get);
@@ -42,7 +38,6 @@ class RateLimiterTest {
 
 		assertThatExceptionOfType(RateLimitExceededException.class)
 			.isThrownBy(() -> this.limiter.acquire(RateLimitOperation.LOGIN, "10.0.0.1"))
-			// 39.5 seconds of the window are left, rounded up.
 			.satisfies(ex -> assertThat(ex.getRetryAfterSeconds()).isEqualTo(40));
 	}
 
@@ -100,12 +95,10 @@ class RateLimiterTest {
 		this.limiter.acquire(RateLimitOperation.LISTING_CREATE, "7");
 		assertThat(this.limiter.trackedKeys()).isEqualTo(6);
 
-		// The login windows (1 minute) have ended, the listing one (1 hour) has not.
 		advance(RateLimiter.CLEANUP_INTERVAL.plusSeconds(1));
 		this.limiter.acquire(RateLimitOperation.MESSAGE_SEND, "7");
 
 		assertThat(this.limiter.trackedKeys()).isEqualTo(2);
-		// The surviving counter kept its count.
 		for (int i = 1; i < HUNDRED_PER_HOUR.maxRequests(); i++) {
 			this.limiter.acquire(RateLimitOperation.LISTING_CREATE, "7");
 		}
@@ -123,10 +116,8 @@ class RateLimiterTest {
 			.isThrownBy(() -> small.acquire(RateLimitOperation.LOGIN, "10.0.0.3"))
 			.satisfies(ex -> assertThat(ex.getRetryAfterSeconds()).isPositive());
 		assertThat(small.trackedKeys()).isEqualTo(2);
-		// Keys that are already tracked keep working.
 		small.acquire(RateLimitOperation.LOGIN, "10.0.0.1");
 
-		// Once windows have ended there is room again, even before the periodic cleanup is due.
 		advance(Duration.ofSeconds(11));
 		small.acquire(RateLimitOperation.LOGIN, "10.0.0.3");
 		assertThat(small.trackedKeys()).isEqualTo(1);
@@ -150,7 +141,6 @@ class RateLimiterTest {
 							allowed++;
 						}
 						catch (RateLimitExceededException ex) {
-							// Expected once the limit is used up.
 						}
 					}
 					return allowed;
@@ -191,7 +181,6 @@ class RateLimiterTest {
 
 	@Test
 	void everyOperationUsesItsOwnConfiguredLimit() {
-		// Limit n allows n requests; each property gets a different n, in declaration order.
 		Limit[] limits = new Limit[RateLimitOperation.values().length];
 		for (int i = 0; i < limits.length; i++) {
 			limits[i] = new Limit(i + 1, Duration.ofHours(1));
@@ -218,7 +207,6 @@ class RateLimiterTest {
 		assertThat(properties.limitFor(RateLimitOperation.PROFILE_UPDATE)).isSameAs(properties.profileUpdate());
 		assertThat(properties.limitFor(RateLimitOperation.ADMIN_MODERATION)).isSameAs(properties.adminModeration());
 
-		// And every operation counts separately for the same subject.
 		RateLimiter limiter = new RateLimiter(properties, this.nanos::get);
 		for (RateLimitOperation operation : RateLimitOperation.values()) {
 			int max = properties.limitFor(operation).maxRequests();
@@ -239,7 +227,6 @@ class RateLimiterTest {
 		this.nanos.addAndGet(duration.toNanos());
 	}
 
-	// Login and registration: 3 per minute; the authenticated writes: 100 per hour.
 	private static RateLimitProperties properties(int maxTrackedKeys) {
 		return properties(maxTrackedKeys, THREE_PER_MINUTE);
 	}

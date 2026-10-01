@@ -1,7 +1,6 @@
 import type { UserProfile } from '../features/profile/types'
 import { ACCOUNT } from './api'
 
-/** The signed-in test user's profile (`ACCOUNT`), as `UserProfileResponse`. */
 export function ownProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: ACCOUNT.id,
@@ -17,7 +16,6 @@ export function ownProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   }
 }
 
-/** Alice's public profile, as `UserProfileResponse`. */
 export function aliceProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: 7,

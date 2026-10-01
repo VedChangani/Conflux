@@ -23,21 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Interest in listings and the owner's answer. The acting user always comes from the
- * verified JWT ({@link CurrentUser}). Rules:
- * <ul>
- * <li>anyone except the owner may express interest in a PUBLISHED listing, once;</li>
- * <li>only the listing owner may accept or reject, only the requester may withdraw;
- * accepting also creates the connection's conversation;</li>
- * <li>only the two participants can see a connection; for anyone else it does not exist
- * (404);</li>
- * <li>suspended accounts cannot change anything (403).</li>
- * </ul>
- * The requester's or owner's rate limit (429) is checked only after every 403/404/409 check,
- * and only for requests that actually change something; changes applied in memory before a
- * 429 are rolled back with the transaction.
- */
 @Service
 public class ConnectionService {
 
@@ -69,19 +54,6 @@ public class ConnectionService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * Expresses the current user's interest in a PUBLISHED listing.
-	 * <p>
-	 * Deliberately not one transaction: if a concurrent request creates the same connection
-	 * first, the unique constraint fails only the insert's own transaction and the existing
-	 * connection is returned, exactly as for a repeated request.
-	 * @return the new PENDING connection ({@code created}), or the existing PENDING or
-	 * ACCEPTED one
-	 * @throws ResponseStatusException 404 unless the listing is PUBLISHED; 409 for the
-	 * listing's owner or if an earlier interest was rejected or withdrawn
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user expressed
-	 * interest too often recently (only new connections count; a repeated request does not)
-	 */
 	public InterestResult expressInterest(Long listingId) {
 		User requester = this.userService.currentActiveUser();
 		Listing listing = this.listingRepository.findPublicById(listingId)
@@ -99,7 +71,6 @@ public class ConnectionService {
 			this.connectionRepository.saveAndFlush(connection);
 		}
 		catch (DataIntegrityViolationException ex) {
-			// Lost a race against an identical request: answer as for a repeated request.
 			return reuse(existingConnection(requester, listing).orElseThrow(() -> ex));
 		}
 		return new InterestResult(ConnectionResponse.from(connection), true);
@@ -119,22 +90,11 @@ public class ConnectionService {
 			.map(ConnectionResponse::from));
 	}
 
-	/**
-	 * @throws ResponseStatusException 404 unless the current user is a participant
-	 */
 	@Transactional(readOnly = true)
 	public ConnectionResponse detail(Long connectionId) {
 		return ConnectionResponse.from(participantConnection(connectionId, this.currentUser.id()));
 	}
 
-	/**
-	 * Listing owner only: PENDING to ACCEPTED, and the connection's conversation is created
-	 * in the same transaction, so there is never an accepted connection without one (if
-	 * creating the conversation fails, the acceptance is rolled back).
-	 * @throws ResponseStatusException 409 if a concurrent request accepted it first
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner accepted or
-	 * rejected too often recently
-	 */
 	@Transactional
 	public ConnectionResponse accept(Long connectionId) {
 		Connection connection = answerAsOwner(connectionId, Connection::accept);
@@ -142,27 +102,16 @@ public class ConnectionService {
 			this.conversationService.createFor(connection);
 		}
 		catch (DataIntegrityViolationException ex) {
-			// Another request accepted this connection and created its conversation first.
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "This request has already been accepted.");
 		}
 		return ConnectionResponse.from(connection);
 	}
 
-	/**
-	 * Listing owner only: PENDING to REJECTED. The connection is kept as history.
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner accepted or
-	 * rejected too often recently
-	 */
 	@Transactional
 	public ConnectionResponse reject(Long connectionId) {
 		return ConnectionResponse.from(answerAsOwner(connectionId, Connection::reject));
 	}
 
-	/**
-	 * Requester only: PENDING to WITHDRAWN. The connection is kept as history.
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user withdrew too
-	 * often recently
-	 */
 	@Transactional
 	public void withdraw(Long connectionId) {
 		User user = this.userService.currentActiveUser();
@@ -171,11 +120,8 @@ public class ConnectionService {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the requester can withdraw this request.");
 		}
 		transition(connection, Connection::withdraw);
-		// After every 403/404/409 check; a 429 rolls the (not yet flushed) change back.
 		this.rateLimiter.acquire(RateLimitOperation.CONNECTION_WITHDRAW, this.currentUser.id().toString());
 	}
-
-	// ---- Helpers --------------------------------------------------------------------
 
 	private Connection answerAsOwner(Long connectionId, Consumer<Connection> answer) {
 		User user = this.userService.currentActiveUser();
@@ -185,10 +131,7 @@ public class ConnectionService {
 					"Only the listing owner can accept or reject this request.");
 		}
 		transition(connection, answer);
-		// Accept and reject share one allowance. After every 403/404/409 check and before the
-		// flush; a 429 rolls the in-memory change back.
 		this.rateLimiter.acquire(RateLimitOperation.CONNECTION_DECISION, this.currentUser.id().toString());
-		// Flush so the response carries the updated timestamp.
 		this.connectionRepository.saveAndFlush(connection);
 		return connection;
 	}
@@ -206,7 +149,6 @@ public class ConnectionService {
 		return this.connectionRepository.findByRequesterIdAndListingId(requester.getId(), listing.getId());
 	}
 
-	// A repeated interest returns the live connection; a closed one is not reopened.
 	private static InterestResult reuse(Connection existing) {
 		return switch (existing.getStatus()) {
 			case PENDING, ACCEPTED -> new InterestResult(ConnectionResponse.from(existing), false);
@@ -217,12 +159,6 @@ public class ConnectionService {
 		};
 	}
 
-	/**
-	 * Like {@link #participantConnection}, then locks the connection row until the end of the
-	 * transaction and re-reads it, so concurrent accept/reject/withdraw calls on the same
-	 * connection run one after another and each sees the status the previous one committed
-	 * (e.g. an accept racing a reject cannot both succeed).
-	 */
 	private Connection lockedParticipantConnection(Long connectionId, Long userId) {
 		Connection connection = participantConnection(connectionId, userId);
 		this.entityManager.refresh(connection, LockModeType.PESSIMISTIC_WRITE);

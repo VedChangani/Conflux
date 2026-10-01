@@ -19,12 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Listing endpoints. Public: {@code GET /listings} and {@code GET /listings/{slug}}
- * (published only). Everything else requires a bearer token; the acting user is always
- * the token's subject (resolved by the service through {@code CurrentUser}), never a value
- * from the request.
- */
 @RestController
 @RequestMapping(ListingController.BASE_PATH)
 public class ListingController {
@@ -41,10 +35,6 @@ public class ListingController {
 		this.listingService = listingService;
 	}
 
-	/**
-	 * Public marketplace discovery. All filters are optional and combined with AND; enum
-	 * values are the upper-case names (e.g. {@code assetType=MVP}), anything else is 400.
-	 */
 	@GetMapping
 	public PageResponse<ListingCardResponse> discover(
 			@RequestParam(required = false) @Size(max = ListingDiscoveryCriteria.SEARCH_MAX_LENGTH) String search,

@@ -15,10 +15,6 @@ interface ConnectionDetailViewProps {
   onUpdated: (connection: Connection) => void
 }
 
-/**
- * One request, showing only what `ConnectionResponse` provides: status, the listing, the
- * requester and the owner, and when it was sent and last changed. Ids are not shown.
- */
 export function ConnectionDetailView({ connection, onUpdated }: ConnectionDetailViewProps) {
   const { account } = useAuth()
   const role = roleOf(connection, account?.id ?? null)

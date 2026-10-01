@@ -5,14 +5,6 @@ import java.time.Instant;
 import com.conflux.listing.Listing;
 import com.conflux.user.User;
 
-/**
- * A conversation as seen by one participant: the listing it is about and the other
- * participant, plus a short preview of the latest message. No emails or security data.
- *
- * @param lastMessagePreview the start of the latest message ({@value #PREVIEW_LENGTH}
- * characters at most), {@code null} if there are no messages yet
- * @param lastMessageAt time of the latest message, {@code null} if there are none
- */
 public record ConversationResponse(Long id, Long connectionId, ListingSummary listing, Participant otherParticipant,
 		String lastMessagePreview, Instant lastMessageAt, Instant createdAt, Instant updatedAt) {
 
@@ -34,10 +26,6 @@ public record ConversationResponse(Long id, Long connectionId, ListingSummary li
 
 	}
 
-	/**
-	 * Must be called while the connection, listing, owner and requester are loaded.
-	 * @param lastMessage the latest message, or {@code null}
-	 */
 	static ConversationResponse from(Conversation conversation, Long currentUserId, Message lastMessage) {
 		return new ConversationResponse(conversation.getId(), conversation.getConnection().getId(),
 				ListingSummary.from(conversation.getConnection().getListing()),
@@ -47,7 +35,6 @@ public record ConversationResponse(Long id, Long connectionId, ListingSummary li
 				conversation.getUpdatedAt());
 	}
 
-	// Cut on a code point boundary so a preview never ends with half a character.
 	private static String preview(String content) {
 		if (content.codePointCount(0, content.length()) <= PREVIEW_LENGTH) {
 			return content;

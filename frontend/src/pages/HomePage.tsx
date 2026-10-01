@@ -7,7 +7,6 @@ import { ASSET_TYPE_LABELS } from '../features/listings/labels'
 import { LatestListings } from '../features/listings/LatestListings'
 import { ASSET_TYPES } from '../features/listings/types'
 
-/** Marketplace landing: a search entry point, shortcuts by type, and the latest listings. */
 export function HomePage() {
   const { status, account } = useAuth()
   const navigate = useNavigate()

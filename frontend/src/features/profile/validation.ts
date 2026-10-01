@@ -10,16 +10,10 @@ import {
 
 const USERNAME_PATTERN = /^[a-z0-9_-]{3,30}$/
 
-/** The backend's username rule, applied after trimming and lower-casing (`User.isValidUsername`). */
 export function isValidUsername(value: string): boolean {
   return USERNAME_PATTERN.test(value.trim().toLowerCase())
 }
 
-/**
- * An absolute http(s) URL with a host and no user info, as the backend's `@HttpUrl`
- * requires. The browser's URL parser is more forgiving than Java's `URI`, so whitespace and
- * scheme-relative forms such as `http:example.com` are rejected up front.
- */
 export function isHttpUrl(value: string): boolean {
   if (/\s/.test(value) || !/^https?:\/\//i.test(value)) {
     return false
@@ -45,7 +39,6 @@ const LABELS: Record<ProfileField, string> = {
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/** What is wrong with one field's value, or `null`. Lengths count the trimmed value, as the backend does. */
 export function validateField(field: ProfileField, raw: string): string | null {
   const value = raw.trim()
   const limit = PROFILE_LIMITS[field]
@@ -74,7 +67,6 @@ export function validateProfile(values: ProfileFormValues): ProfileFieldErrors {
   return errors
 }
 
-/** The form, filled in from a profile; missing optional values become empty fields. */
 export function formValuesOf(profile: UserProfile): ProfileFormValues {
   return {
     displayName: profile.displayName,
@@ -86,10 +78,6 @@ export function formValuesOf(profile: UserProfile): ProfileFormValues {
   }
 }
 
-/**
- * The complete `PUT /profile` body: every editable field, trimmed, with blank optional
- * values as `null`. Built field by field, so nothing else can ever be sent.
- */
 export function toProfileUpdate(values: ProfileFormValues): ProfileUpdate {
   const optional = (value: string) => value.trim() || null
   return {
@@ -102,10 +90,6 @@ export function toProfileUpdate(values: ProfileFormValues): ProfileUpdate {
   }
 }
 
-/**
- * Field errors from a backend 400, in this form's own words: the backend's messages are
- * not shown. Fields the form does not know are left out.
- */
 export function serverFieldErrors(error: unknown, values: ProfileFormValues): ProfileFieldErrors {
   const errors: ProfileFieldErrors = {}
   if (error instanceof ApiError) {

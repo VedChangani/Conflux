@@ -3,7 +3,6 @@ import type { ButtonHTMLAttributes, Ref } from 'react'
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   ref?: Ref<HTMLButtonElement>
   variant?: 'primary' | 'secondary' | 'ghost'
-  /** Disables the button and shows `loadingText` while an action is in progress. */
   loading?: boolean
   loadingText?: string
   block?: boolean

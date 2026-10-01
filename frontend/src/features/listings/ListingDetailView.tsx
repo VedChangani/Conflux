@@ -4,10 +4,6 @@ import { formatDate, initialOf, priceSummary } from './format'
 import { ASSET_TYPE_LABELS, CATEGORY_LABELS, labelOf, MARKETPLACE_MODE_LABELS, STAGE_LABELS } from './labels'
 import type { ListingDetail } from './types'
 
-/**
- * The public view of a published listing. Internal ids and status are not shown.
- * `actions` (e.g. express interest, save) sit in the summary panel under the price.
- */
 export function ListingDetailView({ listing, actions }: { listing: ListingDetail; actions?: ReactNode }) {
   const price = priceSummary(listing)
   const mode = labelOf(MARKETPLACE_MODE_LABELS, listing.marketplaceMode)

@@ -6,24 +6,16 @@ import { ASSET_TYPE_LABELS, CATEGORY_LABELS, labelOf, MARKETPLACE_MODE_LABELS, S
 import type { ListingCardSummary } from './types'
 
 export interface ListingCardSaveOptions {
-  /** See {@link SaveButton}: the saved state to assume while it is otherwise unknown. */
   knownSaved?: boolean
-  /** Called once the API has confirmed a save or unsave of this card's listing. */
   onSavedChange?: (listing: ListingCardSummary, saved: boolean) => void
 }
 
 interface ListingCardProps extends ListingCardSaveOptions {
   listing: ListingCardSummary
-  /** Router state for the detail link, e.g. where "back" should return to. */
   linkState?: unknown
   headingLevel?: 'h2' | 'h3'
 }
 
-/**
- * A published listing in a results grid. The whole card is clickable through the
- * title link, which stays the only link; the save toggle sits above it as the card's
- * one other control.
- */
 export function ListingCard({
   listing,
   linkState,
@@ -97,7 +89,6 @@ export function ListingCard({
   )
 }
 
-/** Placeholder with the card's shape, shown while results load. Hidden from assistive tech. */
 export function ListingCardSkeleton() {
   return (
     <div className="listing-card listing-card-skeleton" aria-hidden="true">

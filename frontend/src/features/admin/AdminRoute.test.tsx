@@ -105,7 +105,6 @@ describe('Admin navigation', () => {
 
     const link = await within(nav()).findByRole('link', { name: 'Moderation' })
     expect(link.getAttribute('href')).toBe('/admin')
-    // The role itself is never printed.
     expect(nav().textContent).not.toContain('ADMIN')
 
     fireEvent.click(link)

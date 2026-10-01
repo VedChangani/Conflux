@@ -1,8 +1,5 @@
 package com.conflux.report;
 
-/**
- * What an administrator did, as recorded in the moderation audit log.
- */
 public enum ModerationActionType {
 
 	SUSPEND_USER,

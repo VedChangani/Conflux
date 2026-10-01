@@ -18,10 +18,6 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-/**
- * Runs against the H2 (MySQL mode) test database with the real Flyway migrations
- * applied; the embedded-database replacement is disabled on purpose.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
@@ -38,7 +34,6 @@ class UserRepositoryTest {
 
 	@Test
 	void flywayMigrationCreatesUsersTable() {
-		// V1 specifically (later migrations exist), not merely the current version.
 		MigrationInfo v1 = Arrays.stream(this.flyway.info().applied())
 			.filter(migration -> "1".equals(migration.getVersion().getVersion()))
 			.findFirst()

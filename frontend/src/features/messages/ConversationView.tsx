@@ -17,10 +17,8 @@ import { useMessagesOutlet } from './messagesOutlet'
 import { MessageThread } from './MessageThread'
 import type { Conversation, Message } from './types'
 
-/** Not a valid id: treated like the backend's 404, without asking it. */
 class InvalidId extends Error {}
 
-/** `/messages/:id`. Keyed by id so nothing from one conversation carries over to the next. */
 export function ConversationView() {
   const { id: rawId } = useParams()
   return <ConversationScreen key={rawId} id={parseId(rawId)} />
@@ -37,7 +35,6 @@ function ConversationScreen({ id }: { id: number | null }) {
     [id],
   )
   const result = useAsync(load)
-  // Read again after sending; a failed refresh just keeps what is shown.
   const [refreshed, setRefreshed] = useState<Conversation | null>(null)
   const [sent, setSent] = useState<Message[]>([])
 
@@ -85,7 +82,6 @@ function ConversationScreen({ id }: { id: number | null }) {
 
   function handleSent(message: Message) {
     setSent((current) => [message, ...current])
-    // The list's order and previews, and this conversation's details, come from the backend.
     refreshConversations()
     messagesApi.conversation(conversation.id).then(setRefreshed, () => undefined)
   }

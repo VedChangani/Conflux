@@ -1,6 +1,5 @@
 import { SavedListings } from '../features/saved/SavedListings'
 
-/** `/saved`: the signed-in user's saved listings. Rendered behind {@link ProtectedRoute}. */
 export function SavedListingsPage() {
   return (
     <div className="saved-page">

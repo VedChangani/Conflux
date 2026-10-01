@@ -8,7 +8,6 @@ interface AuthLayoutProps {
   footer?: ReactNode
 }
 
-/** Shared frame for the login and registration screens. */
 export function AuthLayout({ eyebrow, title, intro, children, footer }: AuthLayoutProps) {
   const headingId = useId()
 

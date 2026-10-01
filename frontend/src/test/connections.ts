@@ -1,14 +1,12 @@
 import type { Connection, ConnectionParticipant } from '../features/connections/types'
 import { ACCOUNT } from './api'
 
-/** The signed-in test user (`ACCOUNT`) as a connection participant. */
 export const ME: ConnectionParticipant = { id: ACCOUNT.id, username: ACCOUNT.username, displayName: ACCOUNT.displayName }
 export const ALICE: ConnectionParticipant = { id: 7, username: 'alice', displayName: 'Alice Anders' }
 export const BOB: ConnectionParticipant = { id: 8, username: 'bob', displayName: 'Bob Brown' }
 
 export const PENDING_COUNT = 'GET /connections/received?status=PENDING&page=0&size=1'
 
-/** A request the signed-in user sent for Alice's listing, as `ConnectionResponse`. */
 export function sentConnection(overrides: Partial<Connection> = {}): Connection {
   return {
     id: 11,
@@ -22,7 +20,6 @@ export function sentConnection(overrides: Partial<Connection> = {}): Connection 
   }
 }
 
-/** A request Bob sent for the signed-in user's listing, as `ConnectionResponse`. */
 export function receivedConnection(overrides: Partial<Connection> = {}): Connection {
   return {
     id: 21,

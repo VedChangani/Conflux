@@ -25,9 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-/**
- * Save paths that cannot be triggered deterministically over HTTP.
- */
 class SavedListingServiceTest {
 
 	private final SavedListingRepository savedListingRepository = mock(SavedListingRepository.class);

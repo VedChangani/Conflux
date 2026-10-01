@@ -2,9 +2,6 @@ package com.conflux.report;
 
 import java.time.Instant;
 
-/**
- * An entry of the admin report queue. No details, notes or target content.
- */
 public record ReportSummaryResponse(Long id, ReportTargetType targetType, Long targetId, ReportReason reason,
 		ReportStatus status, Instant createdAt, Instant reviewedAt) {
 

@@ -48,12 +48,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Rate limiting end to end, with deliberately low limits: 3 logins and 2 registrations per
- * client IP, and 2 of each authenticated write per user, all per 10 minutes. The limiter
- * lives as long as the application context, so each test uses its own client IPs and its
- * own (freshly created, hence new-id) users.
- */
 @SpringBootTest(properties = { "conflux.rate-limit.login.max-requests=3", "conflux.rate-limit.login.window=10m",
 		"conflux.rate-limit.register.max-requests=2", "conflux.rate-limit.register.window=10m",
 		"conflux.rate-limit.listing-create.max-requests=2", "conflux.rate-limit.listing-create.window=10m",
@@ -141,8 +135,6 @@ class RateLimitIntegrationTest {
 		}
 	}
 
-	// ---- Login and registration (per client IP) -------------------------------------------
-
 	@Test
 	void loginsBelowTheLimitSucceedAndTheNextOneGets429ProblemDetailWithRetryAfter() throws Exception {
 		String ip = nextIp();
@@ -169,7 +161,6 @@ class RateLimitIntegrationTest {
 			.getResponse()
 			.getContentAsString();
 		assertThat(known).isEqualTo(unknown).doesNotContain("alice").doesNotContain("nobody_here");
-		// Even the right password is refused until the window ends.
 		assertTooManyRequests(login(knownIp, "alice", PASSWORD));
 	}
 
@@ -181,7 +172,6 @@ class RateLimitIntegrationTest {
 
 		assertTooManyRequests(register(ip, "new_user_3"));
 		assertThat(this.userRepository.existsByUsername("new_user_3")).isFalse();
-		// Duplicates and invalid requests are counted as well: they cannot be used to probe past the limit.
 		assertTooManyRequests(register(ip, "alice"));
 		assertTooManyRequests(this.mockMvc.perform(fromIp(post(REGISTER), ip).contentType(MediaType.APPLICATION_JSON)
 			.content("{}")));
@@ -228,7 +218,6 @@ class RateLimitIntegrationTest {
 			.header("X-Forwarded-For", "203.0.113.99")
 			.header("X-Real-IP", "203.0.113.99")
 			.header("Forwarded", "for=203.0.113.99")));
-		// The addresses named in the headers were never charged.
 		for (int i = 0; i < 3; i++) {
 			login("203.0.113." + i, "alice", PASSWORD).andExpect(status().isOk());
 		}
@@ -262,8 +251,6 @@ class RateLimitIntegrationTest {
 		}
 	}
 
-	// ---- Authenticated writes (per user) ---------------------------------------------------
-
 	@Test
 	void listingCreationIsLimitedPerUser() throws Exception {
 		createListing(this.aliceToken, "First").andExpect(status().isCreated());
@@ -272,7 +259,6 @@ class RateLimitIntegrationTest {
 		assertTooManyRequests(createListing(this.aliceToken, "Third"));
 		assertThat(listingCount(this.alice)).isEqualTo(2);
 
-		// Another user is not affected.
 		createListing(this.bobToken, "Bob's first").andExpect(status().isCreated());
 	}
 
@@ -309,7 +295,6 @@ class RateLimitIntegrationTest {
 		long second = publishedListing("Dave's second listing");
 		long third = publishedOf(this.dave, "Dave's third listing");
 		save(this.bobToken, first).andExpect(status().isNoContent());
-		// Saving an already saved listing changes nothing, so it is answered normally without counting.
 		for (int i = 0; i < 3; i++) {
 			save(this.bobToken, first).andExpect(status().isNoContent());
 		}
@@ -317,7 +302,6 @@ class RateLimitIntegrationTest {
 
 		assertTooManyRequests(save(this.bobToken, third));
 		assertThat(savedCount(this.bob)).isEqualTo(2);
-		// A repeated save stays a no-op even once the allowance is used up.
 		save(this.bobToken, first).andExpect(status().isNoContent());
 		save(this.aliceToken, third).andExpect(status().isNoContent());
 	}
@@ -328,7 +312,6 @@ class RateLimitIntegrationTest {
 		long second = publishedListing("Dave's second listing");
 		long third = publishedOf(this.dave, "Dave's third listing");
 		interest(this.bobToken, first).andExpect(status().isCreated());
-		// A repeated request returns the existing connection without counting.
 		for (int i = 0; i < 3; i++) {
 			interest(this.bobToken, first).andExpect(status().isOk());
 		}
@@ -362,10 +345,6 @@ class RateLimitIntegrationTest {
 
 		report(this.aliceToken, "USER", this.dave.getId()).andExpect(status().isCreated());
 	}
-
-	// ---- 409 before 429 ---------------------------------------------------------------------
-	// A request that fails a state check keeps its 409, also once the allowance is used up, and
-	// does not use the allowance.
 
 	@Test
 	void publishingAListingThatIsNotADraftStays409AndDoesNotUseTheAllowance() throws Exception {
@@ -430,8 +409,6 @@ class RateLimitIntegrationTest {
 		report(this.bobToken, "USER", this.alice.getId()).andExpect(status().isConflict());
 		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM reports", Long.class)).isEqualTo(2);
 	}
-
-	// ---- Behaviour that must not change ----------------------------------------------------
 
 	@Test
 	void publicListingDiscoveryAndDetailAreNotLimited() throws Exception {
@@ -507,8 +484,6 @@ class RateLimitIntegrationTest {
 			this.mockMvc.perform(get("/api/v1/admin/reports")).andExpect(status().isUnauthorized());
 		}
 	}
-
-	// ---- Helpers ---------------------------------------------------------------------------
 
 	private static String nextIp() {
 		int n = IP_COUNTER.incrementAndGet();
@@ -592,14 +567,12 @@ class RateLimitIntegrationTest {
 				token);
 	}
 
-	// Published by Dave through the API; each test can afford two (Dave's own allowance).
 	private long publishedListing(String title) throws Exception {
 		long id = idOf(createListing(this.daveToken, title).andExpect(status().isCreated()));
 		publish(this.daveToken, id).andExpect(status().isOk());
 		return id;
 	}
 
-	// A draft stored directly, without using the owner's listing-creation allowance.
 	private long draftOf(User owner, String title) {
 		String slug = "draft-" + owner.getId() + "-" + IP_COUNTER.incrementAndGet();
 		return this.listingRepository.save(new Listing(owner, title, slug, "A short pitch.", "A full description.",
@@ -608,7 +581,6 @@ class RateLimitIntegrationTest {
 			.getId();
 	}
 
-	// A PUBLISHED listing stored directly, without using the owner's creation or publishing allowance.
 	private long publishedOf(User owner, String title) {
 		Listing listing = new Listing(owner, title, "published-" + owner.getId() + "-" + IP_COUNTER.incrementAndGet(),
 				"A short pitch.", "A full description.", ListingAssetType.PROJECT, ListingMarketplaceMode.COLLABORATE,
@@ -617,7 +589,6 @@ class RateLimitIntegrationTest {
 		return this.listingRepository.save(listing).getId();
 	}
 
-	// Bob expresses interest in one of Dave's listings and Dave accepts, which opens the conversation.
 	private long conversationBetweenBobAndDave() throws Exception {
 		long listing = publishedListing("Dave's listing");
 		long connection = idOf(interest(this.bobToken, listing).andExpect(status().isCreated()));

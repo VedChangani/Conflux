@@ -7,7 +7,6 @@ interface ActiveFiltersProps {
   onClearAll: () => void
 }
 
-/** The search term and filters currently narrowing the results, each removable. */
 export function ActiveFilters({ query, onRemove, onClearAll }: ActiveFiltersProps) {
   if (!hasActiveFilters(query)) {
     return null

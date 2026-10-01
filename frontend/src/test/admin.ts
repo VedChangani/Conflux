@@ -2,13 +2,10 @@ import type { Account } from '../features/auth/types'
 import type { ReportDetail, ReportSummary } from '../features/admin/types'
 import { ACCOUNT } from './api'
 
-/** The signed-in test user as an active administrator. */
 export const ADMIN: Account = { ...ACCOUNT, role: 'ADMIN' }
 
-/** The default queue request: OPEN, first page, 20 per page. */
 export const OPEN_QUEUE = 'GET /admin/reports?status=OPEN&page=0&size=20'
 
-/** A queue entry, as `ReportSummaryResponse`. */
 export function reportSummary(overrides: Partial<ReportSummary> = {}): ReportSummary {
   return {
     id: 101,
@@ -25,7 +22,6 @@ export function reportSummary(overrides: Partial<ReportSummary> = {}): ReportSum
 const BOB = { id: 8, username: 'bob', displayName: 'Bob Brown' }
 const ALICE = { id: 7, username: 'alice', displayName: 'Alice Anders' }
 
-/** An OPEN report about Alice's published listing, as `ReportDetailResponse`. */
 export function listingReport(overrides: Partial<ReportDetail> = {}): ReportDetail {
   return {
     id: 101,
@@ -52,7 +48,6 @@ export function listingReport(overrides: Partial<ReportDetail> = {}): ReportDeta
   } as ReportDetail
 }
 
-/** An OPEN report about Alice's account, as `ReportDetailResponse`. */
 export function userReport(overrides: Partial<ReportDetail> = {}): ReportDetail {
   return {
     id: 102,
@@ -81,7 +76,6 @@ export function userReport(overrides: Partial<ReportDetail> = {}): ReportDetail 
   } as ReportDetail
 }
 
-/** An OPEN report about a message Alice sent Bob, as `ReportDetailResponse`. */
 export function messageReport(overrides: Partial<ReportDetail> = {}): ReportDetail {
   return {
     id: 103,

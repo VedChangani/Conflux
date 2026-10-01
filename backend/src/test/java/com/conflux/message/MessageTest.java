@@ -13,9 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-/**
- * Message content rules and request normalization, without a database.
- */
 class MessageTest {
 
 	private final User owner = new User("owner@example.com", "hash", "owner", "Owner");

@@ -41,7 +41,6 @@ describe('Public profile', () => {
     )
     expect(links().getByText('LinkedIn')).toBeTruthy()
 
-    // No internal id; a public page sends no token.
     expect(document.querySelector('.profile')?.textContent).not.toMatch(/\b7\b/)
     expect(requests.find((request) => request.path === '/users/alice')?.headers.has('Authorization')).toBe(false)
     expect(screen.queryByRole('link', { name: 'Edit your profile' })).toBeNull()
@@ -76,7 +75,6 @@ describe('Public profile', () => {
     await screen.findByRole('heading', { level: 1, name: 'Alice Anders' })
     const link = links().getByRole('link', { name: /example\.com/ })
     expect(link.getAttribute('href')).toBe(long)
-    // Wrapping comes from .profile-links dd { overflow-wrap: anywhere } in the stylesheet.
     expect(link.closest('dd')).toBeTruthy()
   })
 

@@ -52,16 +52,13 @@ describe('Express interest', () => {
     expect(outcome.textContent).toContain('Interest sent')
     expect(outcome.textContent).toContain('You’ll be connected only if they accept it.')
     expect(outcome.textContent).not.toMatch(/you’re connected/i)
-    // Focus moves in an effect after the outcome renders.
     await waitFor(() => expect(document.activeElement).toBe(outcome))
     expect(screen.queryByRole('button', { name: 'Express interest' })).toBeNull()
 
     const [request] = interestCalls(requests)
     expect(interestCalls(requests)).toHaveLength(1)
     expect(request.headers.get('Authorization')).toBe('Bearer stored-token')
-    // The acting user comes from the token; nothing identifying is sent.
     expect(request.body).toBeUndefined()
-    // Connection internals are not shown.
     expect(document.body.textContent).not.toContain('99')
   })
 

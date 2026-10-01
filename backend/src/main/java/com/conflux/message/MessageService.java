@@ -15,11 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Sending and reading messages. Only the two participants of a conversation can do either;
- * the sender is always the authenticated user; sending requires the connection to be
- * ACCEPTED and the account to be active. Message content is never logged.
- */
 @Service
 public class MessageService {
 
@@ -44,12 +39,6 @@ public class MessageService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * @throws ResponseStatusException 403 for a suspended account, 404 unless the user
-	 * participates, 409 unless the connection is ACCEPTED
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user sent too
-	 * many messages recently
-	 */
 	@Transactional
 	public MessageResponse send(Long conversationId, SendMessageRequest request) {
 		User sender = this.userService.currentActiveUser();
@@ -63,10 +52,6 @@ public class MessageService {
 		return MessageResponse.from(message);
 	}
 
-	/**
-	 * A page of the conversation's messages, newest first (then id descending).
-	 * @throws ResponseStatusException 404 unless the user participates
-	 */
 	@Transactional(readOnly = true)
 	public PageResponse<MessageResponse> messages(Long conversationId, int page, int size) {
 		this.conversationService.participantConversation(conversationId, this.currentUser.id());

@@ -3,25 +3,12 @@ import type { ReportTargetType } from './types'
 
 export interface ReportOutcomeError {
   message: string
-  /**
-   * `true` when submitting again cannot help (403, 404, 409, or a target the backend
-   * rejects): the form is replaced by the message.
-   */
   final: boolean
-  /** A 409 is information ("already reported"), not a failure. */
   tone: 'error' | 'info'
 }
 
 const NOUNS: Record<ReportTargetType, string> = { USER: 'profile', LISTING: 'listing', MESSAGE: 'message' }
 
-/**
- * What to tell the reporter when a report could not be submitted. Written here rather than
- * taken from the response, so backend wording never reaches the page. 401 is not covered:
- * the reporter is sent to log in instead.
- *
- * The backend also answers 409 for reporting oneself, but report actions are only offered
- * on other people's profiles, listings and messages, so here 409 means a repeat report.
- */
 export function reportErrorOf(error: unknown, targetType: ReportTargetType, hasFieldErrors: boolean): ReportOutcomeError {
   if (error instanceof ApiError) {
     switch (error.status) {

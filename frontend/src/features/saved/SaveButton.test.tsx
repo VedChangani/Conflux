@@ -19,7 +19,6 @@ const noContent = () => new Response(null, { status: 204 })
 const calls = (requests: RecordedRequest[], key: string) =>
   requests.filter((request) => `${request.method} ${request.path}` === key)
 
-/** The save toggle on the Ledgerly card or the detail page, by its current label. */
 const saveButton = (name: string | RegExp) => screen.getByRole('button', { name })
 
 function signedIn(handlers: Parameters<typeof mockApi>[0]) {
@@ -42,7 +41,6 @@ describe('Saving from listing cards', () => {
 
     expect(calls(requests, LOOKUP)).toHaveLength(1)
     expect(calls(requests, LOOKUP)[0].headers.get('Authorization')).toBe('Bearer stored-token')
-    // Each card still has exactly one link; the toggle is a button above it.
     const [card] = screen.getAllByRole('article')
     expect(within(card).getAllByRole('link')).toHaveLength(1)
   })
@@ -139,7 +137,6 @@ describe('Saving from listing cards', () => {
   })
 
   it('treats saving an already saved listing as saved (the API is idempotent)', async () => {
-    // The lookup failed, so the state is unknown and "Save" is offered.
     const { requests } = signedIn({
       [DISCOVER]: () => json(pageOf([LEDGERLY])),
       [LOOKUP]: () => problem(500, 'An unexpected error occurred.'),
@@ -186,7 +183,6 @@ describe('Saving as an anonymous visitor', () => {
     const router = renderApp('/listings/ledgerly')
 
     const button = await screen.findByRole('button', { name: 'Save' })
-    // No pressed state is claimed for someone who is not signed in.
     expect(button.getAttribute('aria-pressed')).toBeNull()
     fireEvent.click(button)
 

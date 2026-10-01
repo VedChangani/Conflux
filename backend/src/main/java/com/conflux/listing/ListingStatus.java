@@ -1,18 +1,5 @@
 package com.conflux.listing;
 
-/**
- * Marketplace lifecycle status of a listing. Owners publish directly; there is no review
- * or approval step.
- * <p>
- * Transitions (implemented in {@link Listing}):
- * <ul>
- * <li>publish (owner): {@code DRAFT -> PUBLISHED} (sets {@code publishedAt})</li>
- * <li>archive (owner): {@code DRAFT | PUBLISHED -> ARCHIVED} (keeps {@code publishedAt})</li>
- * <li>suspend (admin moderation): {@code PUBLISHED -> SUSPENDED}</li>
- * <li>restore (admin moderation): {@code SUSPENDED -> PUBLISHED}</li>
- * </ul>
- * Only PUBLISHED listings are publicly visible.
- */
 public enum ListingStatus {
 
 	DRAFT,

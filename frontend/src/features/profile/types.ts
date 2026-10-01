@@ -1,7 +1,3 @@
-/**
- * `UserProfileResponse`: the public profile, used for both someone else's page and the
- * user's own. It never carries email, role, status or credentials. `id` is not displayed.
- */
 export interface UserProfile {
   id: number
   username: string
@@ -11,15 +7,9 @@ export interface UserProfile {
   websiteUrl: string | null
   githubUrl: string | null
   linkedinUrl: string | null
-  /** ISO-8601 instant. */
   createdAt: string | null
 }
 
-/**
- * `PUT /profile` body: all six editable fields, replacing the stored ones. Identity and
- * account fields (id, username, email, role, status, password) are deliberately absent.
- * Optional fields are `null` when blank.
- */
 export interface ProfileUpdate {
   displayName: string
   bio: string | null
@@ -31,7 +21,6 @@ export interface ProfileUpdate {
 
 export type ProfileField = keyof ProfileUpdate
 
-/** The editable fields, in form order. */
 export const PROFILE_FIELDS: readonly ProfileField[] = [
   'displayName',
   'location',
@@ -41,7 +30,6 @@ export const PROFILE_FIELDS: readonly ProfileField[] = [
   'linkedinUrl',
 ]
 
-/** The backend's limits (`User.*_MAX_LENGTH`), after trimming. */
 export const PROFILE_LIMITS: Record<ProfileField, number> = {
   displayName: 100,
   bio: 500,
@@ -51,5 +39,4 @@ export const PROFILE_LIMITS: Record<ProfileField, number> = {
   linkedinUrl: 255,
 }
 
-/** The form's values: always strings, exactly as typed. */
 export type ProfileFormValues = Record<ProfileField, string>

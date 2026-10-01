@@ -10,16 +10,10 @@ interface ConnectionItemProps {
   connection: Connection
   box: ConnectionBox
   accountId: number | null
-  /** Router state for the detail link, so "back" returns to this list. */
   linkState?: unknown
   onUpdated: (connection: Connection) => void
 }
 
-/**
- * One request in a list: status, listing, the other person and dates, with the actions
- * available to the user. The listing title links to the request's detail page and covers
- * the row; the action buttons sit above that link.
- */
 export function ConnectionItem({ connection, box, accountId, linkState, onUpdated }: ConnectionItemProps) {
   const role = roleOf(connection, accountId)
   const received = box === 'received'

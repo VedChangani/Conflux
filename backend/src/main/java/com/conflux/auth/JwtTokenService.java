@@ -12,10 +12,6 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
-/**
- * Issues signed access tokens. Claims: {@code iss}, {@code sub} (user id), {@code iat},
- * {@code exp} and {@code role}. No credentials or profile data are included.
- */
 @Service
 public class JwtTokenService {
 

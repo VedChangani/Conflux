@@ -8,20 +8,12 @@ import type { ReportTarget } from './types'
 
 interface ReportButtonProps {
   target: ReportTarget
-  /** Visible text; defaults to "Report". */
   label?: string
-  /** A fuller accessible name that starts with the visible text, e.g. "Report message from Bob Brown". */
   accessibleLabel?: string
-  /** Small text-style trigger, e.g. inside a message. */
   compact?: boolean
   className?: string
 }
 
-/**
- * Opens the report dialog for a user, listing or message without leaving the page. Visitors
- * who aren't signed in are sent to log in and brought back. Callers only render it for
- * things that aren't the user's own.
- */
 export function ReportButton({ target, label = 'Report', accessibleLabel, compact = false, className }: ReportButtonProps) {
   const { status } = useAuth()
   const redirectToLogin = useLoginRedirect()

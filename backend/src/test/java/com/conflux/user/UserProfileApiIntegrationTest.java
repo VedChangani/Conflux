@@ -30,12 +30,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * HTTP behaviour of public and own profiles: full context, real security filter chain,
- * Flyway-migrated H2 database. Alice has a complete profile, Bob an empty one, Carol a
- * complete profile but a suspended account. Alice's published listing is saved by Bob and
- * Bob's interest in it is accepted (with its conversation), for the regression checks.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -110,8 +104,6 @@ class UserProfileApiIntegrationTest {
 		}
 	}
 
-	// ---- Public profile ------------------------------------------------------------------
-
 	@Test
 	void publicProfileOfAnActiveUserNeedsNoAuthentication() throws Exception {
 		String response = this.mockMvc.perform(get(USERS + "/alice"))
@@ -133,7 +125,6 @@ class UserProfileApiIntegrationTest {
 		assertThat(JSON.readTree(response).propertyNames()).containsExactlyInAnyOrder("id", "username", "displayName",
 				"bio", "location", "websiteUrl", "githubUrl", "linkedinUrl", "createdAt");
 
-		// Usernames follow the usual normalization.
 		this.mockMvc.perform(get(USERS + "/ALICE")).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("alice"));
 	}
 
@@ -165,15 +156,12 @@ class UserProfileApiIntegrationTest {
 			.getContentAsString();
 		assertThat(suspended).isEqualTo(missing.replace("nobody", "carol")).doesNotContain("SUSPENDED")
 			.doesNotContain("Carol's bio");
-		// Strings that cannot be usernames are simply not found.
 		for (String impossible : new String[] { "ab", "josé", "a.b", "UPPER_but-too-long-" + "x".repeat(20) }) {
 			this.mockMvc.perform(get(USERS + "/{username}", impossible))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.detail").value("User not found."));
 		}
 	}
-
-	// ---- Own profile -----------------------------------------------------------------------
 
 	@Test
 	void authenticatedUserGetsTheirOwnProfileFromTheToken() throws Exception {
@@ -214,8 +202,6 @@ class UserProfileApiIntegrationTest {
 		assertThat(column("display_name", this.carol)).isEqualTo("Carol C");
 	}
 
-	// ---- Update ----------------------------------------------------------------------------
-
 	@Test
 	void updateNormalizesAndReplacesTheEditableFields() throws Exception {
 		Map<String, Object> body = new LinkedHashMap<>();
@@ -244,7 +230,6 @@ class UserProfileApiIntegrationTest {
 			.containsEntry("linkedin_url", "https://www.linkedin.com/in/bob");
 		this.mockMvc.perform(get(USERS + "/bob")).andExpect(jsonPath("$.displayName").value("Bob   the Builder"));
 
-		// A PUT replaces everything: omitted optional fields are cleared.
 		updateProfile(this.bobToken, Map.of("displayName", "Bob")).andExpect(status().isOk())
 			.andExpect(jsonPath("$.bio").value(nullValue()))
 			.andExpect(jsonPath("$.linkedinUrl").value(nullValue()));
@@ -326,11 +311,8 @@ class UserProfileApiIntegrationTest {
 		assertThat(this.jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE username = 'mallory' OR id = 999999",
 				Long.class))
 			.isZero();
-		// Another user's profile is unaffected: the token decides whose profile is updated.
 		assertThat(column("display_name", this.bob)).isEqualTo("Bob B");
 	}
-
-	// ---- Regression ------------------------------------------------------------------------
 
 	@Test
 	void profileChangesShowUpInEverySafeOwnerSummaryWithoutExposingPrivateData() throws Exception {
@@ -378,8 +360,6 @@ class UserProfileApiIntegrationTest {
 			.andExpect(jsonPath("$.bio").value(nullValue()));
 		this.mockMvc.perform(get(USERS + "/dora")).andExpect(status().isOk());
 	}
-
-	// ---- Helpers ------------------------------------------------------------------------
 
 	private static Map<String, Object> fullProfile() {
 		Map<String, Object> body = new LinkedHashMap<>();

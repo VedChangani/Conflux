@@ -7,7 +7,6 @@ interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id
   error?: string
 }
 
-/** Labelled input with optional hint and error text, wired up for screen readers. */
 export function TextField({ label, hint, error, className, ...inputProps }: TextFieldProps) {
   const id = useId()
   const hintId = hint ? `${id}-hint` : undefined

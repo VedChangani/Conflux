@@ -10,15 +10,10 @@ import { Button } from './Button'
 import { ErrorMessage } from './ErrorMessage'
 import { Loading } from './Loading'
 
-/**
- * Top-level layout: navigation header plus the active route. While a stored token is
- * being checked, neither signed-in nor signed-out UI is shown.
- */
 export function AppShell() {
   const { status, verificationFailed, retryVerification, logout } = useAuth()
   const mainRef = useRef<HTMLElement>(null)
 
-  // Moves focus (which also scrolls) rather than following the #hash, so the URL and router state stay as they are.
   function skipToContent(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault()
     mainRef.current?.focus()
@@ -68,10 +63,6 @@ export function AppShell() {
   )
 }
 
-/**
- * The app's sections. Signed-in users also get their saved listings, connections and messages;
- * active administrators also get the moderation area.
- */
 function SectionNav() {
   const { status, account } = useAuth()
   const { count } = usePendingRequests()

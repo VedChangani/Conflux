@@ -20,15 +20,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
-/**
- * A user's interest in a specific listing, answered by the listing's owner. There is no
- * owner column: the owner of a connection is always {@code listing.owner}, which never
- * changes. At most one connection exists per (requester, listing); the database enforces it.
- * <p>
- * The status only changes through {@link #accept()}, {@link #reject()} and
- * {@link #withdraw()}, all of which require PENDING. Who may call which is decided by
- * {@link ConnectionService}.
- */
 @Entity
 @Table(name = "connections")
 public class Connection {
@@ -55,43 +46,25 @@ public class Connection {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected Connection() {
 	}
 
-	/**
-	 * A new PENDING expression of interest by {@code requester} in {@code listing}.
-	 */
 	public Connection(Listing listing, User requester) {
 		this.listing = Objects.requireNonNull(listing, "listing must not be null");
 		this.requester = Objects.requireNonNull(requester, "requester must not be null");
 		this.status = ConnectionStatus.PENDING;
 	}
 
-	/**
-	 * PENDING to ACCEPTED.
-	 * @throws ConnectionStateException for any other status
-	 */
 	public void accept() {
 		requirePending("accepted");
 		this.status = ConnectionStatus.ACCEPTED;
 	}
 
-	/**
-	 * PENDING to REJECTED.
-	 * @throws ConnectionStateException for any other status
-	 */
 	public void reject() {
 		requirePending("rejected");
 		this.status = ConnectionStatus.REJECTED;
 	}
 
-	/**
-	 * PENDING to WITHDRAWN.
-	 * @throws ConnectionStateException for any other status
-	 */
 	public void withdraw() {
 		requirePending("withdrawn");
 		this.status = ConnectionStatus.WITHDRAWN;
@@ -104,7 +77,6 @@ public class Connection {
 		}
 	}
 
-	// Same approach as the other entities: UTC, truncated to the DATETIME(6) precision.
 	@PrePersist
 	void onCreate() {
 		Instant now = now();
@@ -133,9 +105,6 @@ public class Connection {
 		return this.requester;
 	}
 
-	/**
-	 * The listing's owner, the only one who may accept or reject.
-	 */
 	public User getOwner() {
 		return this.listing.getOwner();
 	}

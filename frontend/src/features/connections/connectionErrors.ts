@@ -2,11 +2,6 @@ import { ApiError } from '../../services/apiClient'
 
 export type ConnectionAction = 'accept' | 'reject' | 'withdraw'
 
-/**
- * A user-facing message for a failed accept, reject or withdraw. Written here rather than
- * taken from the response, so backend wording never reaches the page. 401 is not covered:
- * the session ends and the protected route sends the user to log in.
- */
 export function actionErrorMessage(error: unknown, action: ConnectionAction): string {
   if (error instanceof ApiError) {
     switch (error.status) {
@@ -27,7 +22,6 @@ export function actionErrorMessage(error: unknown, action: ConnectionAction): st
   return 'Something went wrong. Please try again.'
 }
 
-/** Whether trying the same action again could succeed. */
 export function isRetryable(error: unknown): boolean {
   return !(error instanceof ApiError) || ![403, 404, 409].includes(error.status)
 }

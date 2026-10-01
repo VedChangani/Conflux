@@ -31,7 +31,6 @@ const REASON_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(REASON_COPY).map(([reason, copy]) => [reason, copy.label]),
 )
 
-/** Readable labels, also for a value the backend may add later. */
 export const reportStatusLabel = (status: string) => labelOf(REPORT_STATUS_LABELS, status)
 export const targetTypeLabel = (type: string) => labelOf(TARGET_TYPE_LABELS, type)
 export const reasonLabel = (reason: string) => labelOf(REASON_LABELS, reason)

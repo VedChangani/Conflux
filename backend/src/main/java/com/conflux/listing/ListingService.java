@@ -18,17 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Listing use cases. Owner operations act for the authenticated user ({@link CurrentUser},
- * from the verified JWT) and only ever load listings through owner-scoped queries, so
- * another user's listing behaves exactly like a missing one (404). Responses are mapped inside the
- * transaction.
- * <p>
- * Every write checks, in this order: the account (403 if suspended), ownership (404), the
- * listing's status (409), and only then the owner's rate limit (429). A write that changes
- * nothing (archiving an archived listing) is answered normally without using the allowance.
- * Changes applied in memory before a 429 are never flushed: the transaction rolls back.
- */
 @Service
 public class ListingService {
 
@@ -55,12 +44,6 @@ public class ListingService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	// ---- Public ---------------------------------------------------------------------
-
-	/**
-	 * Public marketplace discovery: PUBLISHED listings only, filtered by the given criteria
-	 * (AND) and ordered by the chosen {@link ListingSort}.
-	 */
 	@Transactional(readOnly = true)
 	public PageResponse<ListingCardResponse> discover(ListingDiscoveryCriteria criteria, int page, int size) {
 		ListingSort sort = (criteria.sort() != null) ? criteria.sort() : ListingSort.DEFAULT;
@@ -71,10 +54,6 @@ public class ListingService {
 			.map(ListingCardResponse::from));
 	}
 
-	/**
-	 * Trimmed, lower-cased "contains" LIKE pattern, or {@code null} for a missing or blank
-	 * search. LIKE wildcards typed by the user are escaped so they match literally.
-	 */
 	static String searchPattern(String search) {
 		if (search == null || search.isBlank()) {
 			return null;
@@ -87,10 +66,6 @@ public class ListingService {
 		return "%" + escaped + "%";
 	}
 
-	/**
-	 * @throws ResponseStatusException 404 unless the listing is publicly visible (PUBLISHED
-	 * and its owner ACTIVE)
-	 */
 	@Transactional(readOnly = true)
 	public ListingDetailResponse publishedListing(String slug) {
 		return this.listingRepository.findPublicBySlug(slug)
@@ -98,14 +73,6 @@ public class ListingService {
 			.orElseThrow(ListingService::notFound);
 	}
 
-	// ---- Owner ----------------------------------------------------------------------
-
-	/**
-	 * Creates a DRAFT listing owned by the current user with a server-generated slug.
-	 * @throws ResponseStatusException 409 if no unique slug could be stored
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user created too
-	 * many listings recently
-	 */
 	@Transactional
 	public ListingDetailResponse create(ListingRequest request) {
 		User owner = this.userService.currentActiveUser();
@@ -120,7 +87,6 @@ public class ListingService {
 			this.listingRepository.saveAndFlush(listing);
 		}
 		catch (DataIntegrityViolationException ex) {
-			// The existence check passed but a concurrent insert took the same slug.
 			throw new ResponseStatusException(HttpStatus.CONFLICT,
 					"The listing could not be created because of a conflicting listing. Please try again.");
 		}
@@ -138,14 +104,6 @@ public class ListingService {
 		return ListingDetailResponse.from(ownedListing(listingId));
 	}
 
-	/**
-	 * Replaces the editable content. The status and {@code publishedAt} are unchanged, so a
-	 * PUBLISHED listing stays public.
-	 * @throws ResponseStatusException 403 for a suspended account, 404 if not owned, 409 if
-	 * ARCHIVED or SUSPENDED
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner edited too
-	 * often recently
-	 */
 	@Transactional
 	public ListingDetailResponse update(Long listingId, ListingRequest request) {
 		this.userService.currentActiveUser();
@@ -160,18 +118,10 @@ public class ListingService {
 		listing.setStage(request.stage());
 		applyContent(listing, request);
 		this.rateLimiter.acquire(RateLimitOperation.LISTING_UPDATE, this.currentUser.id().toString());
-		// Flush so the response carries the updated timestamp.
 		this.listingRepository.saveAndFlush(listing);
 		return ListingDetailResponse.from(listing);
 	}
 
-	/**
-	 * DRAFT to PUBLISHED: the listing is public immediately, without any review.
-	 * @throws ResponseStatusException 403 for a suspended account, 404 if not owned, 409
-	 * unless DRAFT
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner published
-	 * too often recently
-	 */
 	@Transactional
 	public ListingDetailResponse publish(Long listingId) {
 		this.userService.currentActiveUser();
@@ -182,14 +132,6 @@ public class ListingService {
 		return ListingDetailResponse.from(listing);
 	}
 
-	/**
-	 * Soft delete: the row is kept with status ARCHIVED. Archiving an already archived
-	 * listing does nothing (and does not count toward the rate limit).
-	 * @throws ResponseStatusException 403 for a suspended account, 404 if not owned, 409 if
-	 * SUSPENDED
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the owner archived too
-	 * often recently
-	 */
 	@Transactional
 	public void archive(Long listingId) {
 		this.userService.currentActiveUser();
@@ -200,15 +142,11 @@ public class ListingService {
 		}
 	}
 
-	// ---- Helpers --------------------------------------------------------------------
-
-	// Owner-scoped lookup for the current user: another user's listing is indistinguishable from a missing one.
 	private Listing ownedListing(Long listingId) {
 		return this.listingRepository.findByIdAndOwnerId(listingId, this.currentUser.id())
 			.orElseThrow(ListingService::notFound);
 	}
 
-	// Optional fields: blank input is stored as null. Price and currency are set together.
 	private static void applyContent(Listing listing, ListingRequest request) {
 		listing.setProblem(blankToNull(request.problem()));
 		listing.setSolution(blankToNull(request.solution()));

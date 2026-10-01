@@ -12,10 +12,8 @@ import { ReportButton } from '../features/reports/ReportButton'
 import { useAsync } from '../lib/useAsync'
 import { ApiError } from '../services/apiClient'
 
-/** Not a username the backend could ever accept: treated as its 404, without asking. */
 class InvalidUsername extends Error {}
 
-/** `/users/:username`: an active user's public profile. Open to everyone. */
 export function PublicProfilePage() {
   const { username = '' } = useParams()
   const { account } = useAuth()
@@ -39,7 +37,6 @@ export function PublicProfilePage() {
   }
 
   if (result.status === 'error') {
-    // Unknown and suspended accounts look the same: the backend answers 404 for both.
     const unavailable =
       result.error instanceof InvalidUsername || (result.error instanceof ApiError && result.error.status === 404)
     return unavailable ? (
@@ -65,7 +62,6 @@ export function PublicProfilePage() {
   }
 
   const profile = result.data
-  // From the verified session and the response, never from the URL alone.
   const isOwn = account !== null && account.username === profile.username
 
   return (

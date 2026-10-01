@@ -53,10 +53,6 @@ export const SORT_LABELS: Record<ListingSort, string> = {
   PRICE_HIGH: 'Price: high to low',
 }
 
-/**
- * The label for an enum value, or the raw value made readable when it is unknown
- * (e.g. a value the backend added later, or a hand-edited URL).
- */
 export function labelOf(labels: Record<string, string>, value: string): string {
   if (Object.hasOwn(labels, value)) {
     return labels[value]
@@ -68,13 +64,11 @@ export function labelOf(labels: Record<string, string>, value: string): string {
 export interface FilterDefinition {
   key: FilterKey
   label: string
-  /** The "no filter" choice. */
   anyLabel: string
   values: readonly string[]
   labels: Record<string, string>
 }
 
-/** The enum filters of marketplace discovery, in display order. */
 export const FILTERS: readonly FilterDefinition[] = [
   { key: 'assetType', label: 'Type', anyLabel: 'All types', values: ASSET_TYPES, labels: ASSET_TYPE_LABELS },
   {

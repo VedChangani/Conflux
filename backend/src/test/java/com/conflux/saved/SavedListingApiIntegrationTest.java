@@ -46,11 +46,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * HTTP behaviour of saved listings: full context, real security filter chain, Flyway-
- * migrated H2 database. Alice owns every fixture listing; Bob and Carol save them.
- * Suspension has no API yet, so SUSPENDED is set with SQL after a real publish.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -129,15 +124,12 @@ class SavedListingApiIntegrationTest {
 		this.jdbc.update("UPDATE listings SET status = 'SUSPENDED' WHERE id = ?", this.suspended);
 	}
 
-	// Saves reference users and listings, so they must go first (other test classes delete those).
 	@AfterEach
 	void cleanDatabase() {
 		this.savedListingRepository.deleteAllInBatch();
 		this.listingRepository.deleteAllInBatch();
 		this.userRepository.deleteAllInBatch();
 	}
-
-	// ---- Saving ------------------------------------------------------------------------
 
 	@Test
 	void authenticatedUserSavesAPublishedListingOnce() throws Exception {
@@ -211,7 +203,6 @@ class SavedListingApiIntegrationTest {
 		assertThat(rows(this.carol, this.p1)).isZero();
 		assertThat(rows(this.alice, this.p1)).isZero();
 		assertThat(savedIds(this.carolToken, "")).isEmpty();
-		// Query parameters cannot select another user's collection either.
 		assertThat(savedIds(this.carolToken, "userId=" + this.bob.getId())).isEmpty();
 	}
 
@@ -226,8 +217,6 @@ class SavedListingApiIntegrationTest {
 		assertThat(savedIds(this.bobToken, "")).containsExactly(this.p1);
 	}
 
-	// ---- Unsaving ----------------------------------------------------------------------
-
 	@Test
 	void savedListingCanBeUnsavedAndRepeatedUnsaveIsIdempotent() throws Exception {
 		save(this.bobToken, this.p1).andExpect(status().isNoContent());
@@ -237,7 +226,6 @@ class SavedListingApiIntegrationTest {
 		assertThat(savedIds(this.bobToken, "")).isEmpty();
 
 		unsave(this.bobToken, this.p1).andExpect(status().isNoContent());
-		// Never saved, hidden and non-existent listings: nothing to remove, still 204.
 		unsave(this.bobToken, this.p2).andExpect(status().isNoContent());
 		unsave(this.bobToken, this.draft).andExpect(status().isNoContent());
 		unsave(this.bobToken, 999_999_999L).andExpect(status().isNoContent());
@@ -257,7 +245,6 @@ class SavedListingApiIntegrationTest {
 	void anotherUserCannotRemoveSomeoneElsesSave() throws Exception {
 		save(this.bobToken, this.p1).andExpect(status().isNoContent());
 
-		// Carol's unsave only ever affects Carol's own (non-existent) save.
 		unsave(this.carolToken, this.p1).andExpect(status().isNoContent());
 		unsave(this.aliceToken, this.p1).andExpect(status().isNoContent());
 
@@ -273,8 +260,6 @@ class SavedListingApiIntegrationTest {
 		unsave(this.bobToken, this.p1).andExpect(status().isNoContent());
 		assertThat(rows(this.bob, this.p1)).isZero();
 	}
-
-	// ---- Saved-listings endpoint -------------------------------------------------------
 
 	@Test
 	void eachUserSeesOnlyTheirOwnSaves() throws Exception {
@@ -296,8 +281,6 @@ class SavedListingApiIntegrationTest {
 		for (long id : new long[] { this.p1, this.p2, this.p3, this.p4 }) {
 			save(this.bobToken, id).andExpect(status().isNoContent());
 		}
-		// P2 archived by its owner, P3 suspended by trust-and-safety, and a save of a draft
-		// (impossible through the API, inserted directly to prove the query itself filters).
 		this.mockMvc.perform(request(delete(LISTINGS + "/" + this.p2), this.aliceToken)).andExpect(status().isNoContent());
 		this.jdbc.update("UPDATE listings SET status = 'SUSPENDED' WHERE id = ?", this.p3);
 		this.jdbc.update("INSERT INTO saved_listings (user_id, listing_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
@@ -309,7 +292,6 @@ class SavedListingApiIntegrationTest {
 				this.bob.getId()))
 			.isEqualTo(5);
 
-		// If a listing becomes public again, the kept save is visible again.
 		this.jdbc.update("UPDATE listings SET status = 'PUBLISHED' WHERE id = ?", this.p3);
 		assertThat(savedIds(this.bobToken, "")).containsExactlyInAnyOrder(this.p1, this.p3, this.p4);
 	}
@@ -322,7 +304,7 @@ class SavedListingApiIntegrationTest {
 		Instant base = Instant.parse("2026-06-01T08:00:00Z");
 		setSavedAt(this.p1, base.plusSeconds(300));
 		setSavedAt(this.p2, base.plusSeconds(100));
-		setSavedAt(this.p3, base.plusSeconds(300)); // same as P1: the later save (higher id) first
+		setSavedAt(this.p3, base.plusSeconds(300));
 		setSavedAt(this.p4, base.plusSeconds(200));
 
 		assertThat(savedIds(this.bobToken, "")).containsExactly(this.p3, this.p1, this.p4, this.p2);
@@ -364,8 +346,6 @@ class SavedListingApiIntegrationTest {
 			.andExpect(jsonPath("$.first").value(true))
 			.andExpect(jsonPath("$.last").value(true));
 	}
-
-	// ---- Response ----------------------------------------------------------------------
 
 	@Test
 	void savedItemIsALightweightCardWithSavedAtAndNoPrivateData() throws Exception {
@@ -411,8 +391,6 @@ class SavedListingApiIntegrationTest {
 			.doesNotContain("Looking for a growth partner.");
 	}
 
-	// ---- Integrity ---------------------------------------------------------------------
-
 	@Test
 	void concurrentSavesOfTheSameListingCreateExactlyOneRow() throws Exception {
 		int threads = 8;
@@ -448,14 +426,11 @@ class SavedListingApiIntegrationTest {
 		assertThat(rows(this.bob, this.p1)).isEqualTo(1);
 	}
 
-	// ---- Regression --------------------------------------------------------------------
-
 	@Test
 	void marketplaceAndListingManagementAreUnaffectedBySaves() throws Exception {
 		save(this.bobToken, this.p1).andExpect(status().isNoContent());
 		save(this.carolToken, this.p1).andExpect(status().isNoContent());
 
-		// Public discovery and detail: unchanged, and no per-user saved state.
 		this.mockMvc.perform(get(LISTINGS)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(4));
 		String slug = this.jdbc.queryForObject("SELECT slug FROM listings WHERE id = ?", String.class, this.p1);
 		this.mockMvc.perform(get(LISTINGS + "/" + slug))
@@ -463,7 +438,6 @@ class SavedListingApiIntegrationTest {
 			.andExpect(jsonPath("$.isSaved").doesNotExist())
 			.andExpect(jsonPath("$.saved").doesNotExist());
 
-		// The owner edits a saved listing: the saved card shows the new content.
 		Map<String, Object> edit = listingBody("Published one, edited");
 		this.mockMvc
 			.perform(request(put(LISTINGS + "/" + this.p1), this.aliceToken).contentType(MediaType.APPLICATION_JSON)
@@ -472,19 +446,15 @@ class SavedListingApiIntegrationTest {
 			.andExpect(jsonPath("$.status").value("PUBLISHED"));
 		saved(this.bobToken, "").andExpect(jsonPath("$.content[0].title").value("Published one, edited"));
 
-		// The owner archives it: gone from the saved page and the marketplace; saves are kept.
 		this.mockMvc.perform(request(delete(LISTINGS + "/" + this.p1), this.aliceToken)).andExpect(status().isNoContent());
 		assertThat(savedIds(this.bobToken, "")).isEmpty();
 		this.mockMvc.perform(get(LISTINGS)).andExpect(jsonPath("$.totalElements").value(3));
 		assertThat(this.savedListingRepository.count()).isEqualTo(2);
 
-		// The owner's dashboard still works.
 		this.mockMvc.perform(get(LISTINGS + "/mine").header(HttpHeaders.AUTHORIZATION, "Bearer " + this.aliceToken))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.totalElements").value(7));
 	}
-
-	// ---- Helpers ------------------------------------------------------------------------
 
 	private ResultActions save(String token, long listingId) throws Exception {
 		return this.mockMvc.perform(request(post(LISTINGS + "/" + listingId + "/save"), token));

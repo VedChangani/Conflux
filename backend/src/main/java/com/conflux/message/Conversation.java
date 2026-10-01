@@ -18,11 +18,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
-/**
- * The private conversation of an accepted {@link Connection}; exactly one per connection
- * (enforced by the database). Its participants and listing are derived from the connection
- * and never stored twice: the requester and the listing's owner.
- */
 @Entity
 @Table(name = "conversations")
 public class Conversation {
@@ -41,9 +36,6 @@ public class Conversation {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected Conversation() {
 	}
 
@@ -51,18 +43,11 @@ public class Conversation {
 		this.connection = Objects.requireNonNull(connection, "connection must not be null");
 	}
 
-	/**
-	 * Whether the user is the connection's requester or its listing's owner.
-	 */
 	public boolean isParticipant(Long userId) {
 		return this.connection.getRequester().getId().equals(userId)
 				|| this.connection.getOwner().getId().equals(userId);
 	}
 
-	/**
-	 * The participant who is not {@code userId}.
-	 * @throws IllegalArgumentException if {@code userId} is not a participant
-	 */
 	public User otherParticipant(Long userId) {
 		if (this.connection.getRequester().getId().equals(userId)) {
 			return this.connection.getOwner();
@@ -73,7 +58,6 @@ public class Conversation {
 		throw new IllegalArgumentException("not a participant");
 	}
 
-	// Same approach as the other entities: UTC, truncated to the DATETIME(6) precision.
 	@PrePersist
 	void onCreate() {
 		Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);

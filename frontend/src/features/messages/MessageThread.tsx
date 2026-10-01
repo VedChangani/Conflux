@@ -8,14 +8,11 @@ import type { Message } from './types'
 
 interface MessageThreadProps {
   conversationId: number
-  /** The signed-in account, confirmed by `/auth/me`; decides which messages are the user's. */
   accountId: number | null
   recipientName: string
-  /** Messages sent from this page, newest first, as the backend returned them. */
   sent: readonly Message[]
 }
 
-/** Keeps the first occurrence of each message: pages shift as new messages arrive. */
 function uniqueById(messages: readonly Message[]): Message[] {
   const seen = new Set<number>()
   return messages.filter((message) => {
@@ -27,10 +24,6 @@ function uniqueById(messages: readonly Message[]): Message[] {
   })
 }
 
-/**
- * The conversation's messages in the backend's order, newest first. Messages just sent are
- * shown on top straight away; older pages are added at the end on request.
- */
 export function MessageThread({ conversationId, accountId, recipientName, sent }: MessageThreadProps) {
   const loadNewest = useCallback(
     (signal: AbortSignal) => messagesApi.messages(conversationId, 0, MESSAGES_PAGE_SIZE, signal),

@@ -6,7 +6,6 @@ import { redirectTargetFrom } from '../features/auth/redirect'
 import { useAuth } from '../features/auth/useAuth'
 
 interface LoginLocationState {
-  /** Prefills the identifier, e.g. right after registering. */
   identifier?: unknown
   registered?: unknown
 }
@@ -15,7 +14,6 @@ export function LoginPage() {
   const { status } = useAuth()
   const location = useLocation()
 
-  // Also the post-login redirect: a successful login makes the session authenticated.
   if (status === 'authenticated') {
     return <Navigate to={redirectTargetFrom(location.state)} replace />
   }

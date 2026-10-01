@@ -13,17 +13,11 @@ const numberFormat = new Intl.NumberFormat('en-US')
 
 interface ConversationSidebarProps {
   result: AsyncState<PageResponse<Conversation>> & { retry: () => void }
-  /** 1-based. */
   page: number
   hrefFor: (page: number) => string
-  /** The conversation open next to the list, if any. */
   activeId: number | null
 }
 
-/**
- * The user's conversations exactly in the backend's order (most recent activity first):
- * the other person, the listing, the latest message preview and when it happened.
- */
 export function ConversationSidebar({ result, page, hrefFor, activeId }: ConversationSidebarProps) {
   const data = result.data ?? result.previousData
   const loading = result.status === 'loading'
@@ -100,7 +94,6 @@ function ConversationLink({ conversation, active }: { conversation: Conversation
   return (
     <li>
       <Link
-        // Keeps the list's page, so going back returns to the same place.
         to={{ pathname: paths.conversation(conversation.id), search: location.search }}
         className="conversation-link"
         aria-current={active ? 'page' : undefined}

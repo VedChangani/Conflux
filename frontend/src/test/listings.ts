@@ -2,7 +2,6 @@ import type { ListingCard, ListingDetail } from '../features/listings/types'
 import type { SavedListing } from '../features/saved/types'
 import type { PageResponse } from '../types/api'
 
-/** A published listing as `GET /listings` returns it. */
 export function listingCard(overrides: Partial<ListingCard> = {}): ListingCard {
   return {
     id: 1,
@@ -22,7 +21,6 @@ export function listingCard(overrides: Partial<ListingCard> = {}): ListingCard {
   }
 }
 
-/** A published listing as `GET /listings/{slug}` returns it. */
 export function listingDetail(overrides: Partial<ListingDetail> = {}): ListingDetail {
   return {
     ...listingCard(),
@@ -37,7 +35,6 @@ export function listingDetail(overrides: Partial<ListingDetail> = {}): ListingDe
   }
 }
 
-/** A saved listing as `GET /saved-listings` returns it: its owner has no id. */
 export function savedListing(overrides: Partial<SavedListing> = {}): SavedListing {
   const { owner, ...card } = listingCard()
   return {
@@ -48,7 +45,6 @@ export function savedListing(overrides: Partial<SavedListing> = {}): SavedListin
   }
 }
 
-/** A backend `PageResponse`, with metadata derived from the arguments. */
 export function pageOf<T>(content: T[], { page = 0, size = 12, totalElements = content.length } = {}): PageResponse<T> {
   const totalPages = Math.ceil(totalElements / size)
   return {

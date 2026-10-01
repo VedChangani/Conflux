@@ -80,7 +80,6 @@ describe('Marketplace discovery', () => {
     expect(card.getByText('Alice Anders')).toBeTruthy()
     expect(card.getByText('Jan 15, 2026').getAttribute('datetime')).toBe('2026-01-15T12:00:00Z')
     expect(card.getByRole('link', { name: 'Ledgerly' }).getAttribute('href')).toBe('/listings/ledgerly')
-    // One link per card keeps each card a single tab stop.
     expect(card.getAllByRole('link')).toHaveLength(1)
 
     const other = within(pairwise)
@@ -90,7 +89,6 @@ describe('Marketplace discovery', () => {
     expect(other.queryByText(/\$/)).toBeNull()
 
     expect(status().textContent).toBe('Showing 1–2 of 2 listings')
-    // The owner's username is for the detail page; ids are never rendered.
     expect(results().textContent).not.toContain('@alice')
   })
 
@@ -222,7 +220,6 @@ describe('Marketplace discovery', () => {
     await waitFor(() => expect(router.state.location.search).toBe('?sort=PRICE_LOW'))
     await waitFor(() => expect(requests.at(-1)?.path).toBe('/listings?sort=PRICE_LOW&page=0&size=12'))
 
-    // The default order is not written to the URL.
     choose('Sort by', 'NEWEST')
     await waitFor(() => expect(router.state.location.search).toBe(''))
   })
@@ -267,7 +264,6 @@ describe('Marketplace discovery', () => {
     expect(router.state.location.search).toBe('?category=FINTECH&page=2')
     expect(requests.at(-1)?.path).toBe('/listings?category=FINTECH&page=1&size=12')
     expect(status().textContent).toBe('Showing 13–24 of 30 listings')
-    // Focus returns to the top of the results for keyboard and screen-reader users.
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2 }))
     expect(pagination().getByRole('link', { name: /Previous/ }).getAttribute('href')).toBe('/listings?category=FINTECH')
 
@@ -350,7 +346,6 @@ describe('Marketplace discovery', () => {
     expect(alert.textContent).toContain("This link has search options the marketplace doesn't recognise.")
     expect(document.body.textContent).not.toContain('Failed to convert')
     expect(requests[0].path).toBe('/listings?assetType=APP&page=0&size=12')
-    // The unknown value stays visible in its control rather than silently changing.
     expect(select('Type').value).toBe('APP')
 
     fireEvent.click(within(alert).getByRole('link', { name: 'Reset search' }))

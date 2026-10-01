@@ -1,8 +1,3 @@
-/*
- * Conflux visual language: warm paper background, near-black ink, one cobalt accent
- * and a lime highlight used sparingly. Crisp borders and a hard offset shadow are
- * reserved for the elements that matter most (primary actions, the main card).
- */
 :root {
   --font-sans: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue',
     Arial, sans-serif;
@@ -129,8 +124,6 @@ mark {
   font-size: 1.125rem;
   color: var(--ink-soft);
 }
-
-/* ---------- App shell ---------- */
 
 .app-shell {
   display: flex;
@@ -266,13 +259,11 @@ mark {
   max-width: 520px;
 }
 
-/* Focused by the skip link: a target, not a control, so no ring around the whole page. */
 .app-main:focus {
   outline: none;
   box-shadow: none;
 }
 
-/* Hidden until focused, then a solid tab over the header's top-left corner. */
 .skip-link {
   position: absolute;
   top: 8px;
@@ -296,8 +287,6 @@ mark {
   transform: none;
   box-shadow: var(--shadow-hard-sm), var(--focus-ring);
 }
-
-/* ---------- Buttons ---------- */
 
 .button {
   display: inline-flex;
@@ -382,8 +371,6 @@ mark {
   gap: 12px;
 }
 
-/* ---------- Forms ---------- */
-
 .form {
   display: grid;
   gap: 20px;
@@ -447,8 +434,6 @@ mark {
   color: var(--danger);
 }
 
-/* ---------- Feedback ---------- */
-
 .loading {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
@@ -492,8 +477,6 @@ mark {
   font-size: 1.125rem;
   color: var(--success);
 }
-
-/* ---------- Auth screens ---------- */
 
 .auth-layout {
   display: grid;
@@ -619,8 +602,6 @@ mark {
   }
 }
 
-/* ---------- Utilities ---------- */
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -652,8 +633,6 @@ mark {
   color: var(--accent);
 }
 
-/* ---------- Shell additions ---------- */
-
 .app-nav-sections {
   display: flex;
   flex: 1;
@@ -675,11 +654,6 @@ mark {
   white-space: nowrap;
 }
 
-/*
- * Signed in, below desktop width: the sections get their own row under the brand and the
- * account chip, wrapping onto a second line on the narrowest screens rather than hiding
- * links behind a sideways scroll.
- */
 @media (max-width: 1023px) {
   .app-nav[data-session='authenticated'] {
     flex-wrap: wrap;
@@ -702,14 +676,12 @@ mark {
   }
 }
 
-/* On phones that taller, two- or three-row header scrolls away instead of covering the page. */
 @media (max-width: 639px) {
   .app-header:has(.app-nav[data-session='authenticated']) {
     position: static;
   }
 }
 
-/* The wordmark gives way on very narrow screens; the mark and its accessible name stay. */
 @media (max-width: 419px) {
   .app-brand-name {
     position: absolute;
@@ -732,8 +704,6 @@ mark {
   font-weight: 800;
   letter-spacing: -0.035em;
 }
-
-/* ---------- Tags ---------- */
 
 .tag {
   display: inline-flex;
@@ -767,7 +737,6 @@ mark {
   color: var(--ink-soft);
 }
 
-/* Acquisition = cobalt, collaboration = lime: the only colour-coded element. */
 .mode-dot {
   flex: none;
   width: 9px;
@@ -780,8 +749,6 @@ mark {
 [data-mode='collaborate'] .mode-dot {
   background: var(--highlight);
 }
-
-/* ---------- Listing cards ---------- */
 
 .listing-grid {
   display: grid;
@@ -835,7 +802,6 @@ mark {
   text-decoration: none;
 }
 
-/* Stretch the title link over the whole card: one link, one tab stop, big target. */
 .listing-card-link::after {
   content: '';
   position: absolute;
@@ -968,8 +934,6 @@ mark {
   color: var(--muted);
 }
 
-/* ---------- Loading placeholders ---------- */
-
 .listing-card-skeleton {
   gap: 14px;
   border-color: var(--line);
@@ -1022,8 +986,6 @@ mark {
     animation: skeleton-pulse 1.4s ease-in-out infinite;
   }
 }
-
-/* ---------- Discovery controls ---------- */
 
 .discovery {
   display: grid;
@@ -1148,7 +1110,6 @@ mark {
   border-radius: 999px;
 }
 
-/* Small screens: filters fold behind a toggle so results stay near the top. */
 @media (max-width: 639px) {
   .filters-toggle {
     display: inline-flex;
@@ -1163,8 +1124,6 @@ mark {
     padding-inline: 16px;
   }
 }
-
-/* ---------- Active filters ---------- */
 
 .active-filters {
   display: flex;
@@ -1230,8 +1189,6 @@ mark {
   height: 14px;
 }
 
-/* ---------- Results ---------- */
-
 .results {
   display: grid;
   gap: 20px;
@@ -1282,8 +1239,6 @@ mark {
   opacity: 0.55;
 }
 
-/* ---------- Empty state ---------- */
-
 .empty-state {
   display: grid;
   justify-items: start;
@@ -1324,8 +1279,6 @@ mark {
 .empty-state .button-row {
   margin-top: 8px;
 }
-
-/* ---------- Pagination ---------- */
 
 .pagination {
   display: flex;
@@ -1397,7 +1350,6 @@ a.pagination-page:hover {
   color: var(--muted);
 }
 
-/* Small screens: previous/next and "Page x of y" instead of the number row. */
 @media (max-width: 639px) {
   .pagination-pages {
     display: none;
@@ -1407,8 +1359,6 @@ a.pagination-page:hover {
     display: block;
   }
 }
-
-/* ---------- Home ---------- */
 
 .home {
   display: grid;
@@ -1533,8 +1483,6 @@ a.pagination-page:hover {
   font-size: 0.9375rem;
   font-weight: 650;
 }
-
-/* ---------- Listing detail ---------- */
 
 .listing-page {
   display: grid;
@@ -1789,9 +1737,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Save toggle ---------- */
-
-/* Sits above the card's stretched title link, so it stays clickable on its own. */
 .save-control {
   position: relative;
   z-index: 1;
@@ -1826,7 +1771,6 @@ a.pagination-page:hover {
   box-shadow: var(--shadow-hard-sm), var(--focus-ring);
 }
 
-/* Saved: filled icon and "Saved" label carry the state; the highlight only reinforces it. */
 .save-button.is-saved,
 .save-button.is-saved:hover {
   background: var(--highlight-mark);
@@ -1863,8 +1807,6 @@ a.pagination-page:hover {
   justify-content: space-between;
   gap: 8px 12px;
 }
-
-/* ---------- Listing actions ---------- */
 
 .deal-actions {
   display: grid;
@@ -1961,8 +1903,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Connections ---------- */
-
 .connections-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1977,7 +1917,6 @@ a.pagination-page:hover {
   gap: 20px;
 }
 
-/* Received / Sent: tabs sitting on a rule, the active one in ink. */
 .tabs {
   display: flex;
   gap: 4px;
@@ -2045,7 +1984,6 @@ a.pagination-page:hover {
   border-color: var(--ink);
 }
 
-/* Status: always text and icon; colour reinforces. Pending is the one that wants attention. */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -2165,7 +2103,6 @@ a.pagination-page:hover {
   text-decoration: none;
 }
 
-/* The title link covers the row: one link per request, and a large target. */
 .connection-item-link::after {
   content: '';
   position: absolute;
@@ -2224,7 +2161,6 @@ a.pagination-page:hover {
   border-color: var(--line);
 }
 
-/* Actions sit above the row's stretched link. */
 .connection-actions {
   position: relative;
   z-index: 1;
@@ -2305,8 +2241,6 @@ a.pagination-page:hover {
   box-shadow: none;
   transform: translate(2px, 2px);
 }
-
-/* ---------- Connection detail ---------- */
 
 .connection-page {
   display: grid;
@@ -2399,8 +2333,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Messages ---------- */
-
 .messages-page {
   display: grid;
   gap: 20px;
@@ -2427,7 +2359,6 @@ a.pagination-page:hover {
   min-width: 0;
 }
 
-/* Wide screens: the list and the open conversation side by side. */
 @media (min-width: 900px) {
   .messages-layout {
     grid-template-columns: 340px minmax(0, 1fr);
@@ -2447,7 +2378,6 @@ a.pagination-page:hover {
   }
 }
 
-/* Small screens: one screen at a time; the URL decides which. */
 @media (max-width: 899px) {
   .messages-layout[data-pane='conversation'] .messages-sidebar,
   .messages-layout[data-pane='list'] .messages-main {
@@ -2490,7 +2420,6 @@ a.pagination-page:hover {
   padding: 12px 4px 4px;
 }
 
-/* The sidebar is narrow at every size: previous/next and "Page x of y" only. */
 .messages-sidebar .pagination-pages {
   display: none;
 }
@@ -2606,8 +2535,6 @@ a.pagination-page:hover {
   border: 1.5px dashed var(--line-input);
   border-radius: var(--radius-lg);
 }
-
-/* ---------- Conversation ---------- */
 
 .conversation {
   display: grid;
@@ -2781,7 +2708,6 @@ a.pagination-page:hover {
   list-style: none;
 }
 
-/* Ownership: side, "You" tag and border weight; never colour alone. */
 .message {
   display: flex;
   min-width: 0;
@@ -2881,9 +2807,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Profiles ---------- */
-
-/* The signed-in user's chip in the navigation is the way to their profile. */
 .app-nav-user {
   padding: 3px 10px 3px 3px;
   text-decoration: none;
@@ -3085,14 +3008,11 @@ a.pagination-page:hover {
   color: var(--muted);
 }
 
-/* Long URLs wrap instead of widening the page. */
 .profile-links dd {
   margin: 0;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-
-/* ---------- Profile editing ---------- */
 
 .profile-edit {
   display: grid;
@@ -3183,8 +3103,6 @@ a.pagination-page:hover {
     transition: border-color 120ms ease;
   }
 }
-
-/* ---------- Dialog ---------- */
 
 .dialog-backdrop {
   position: fixed;
@@ -3279,7 +3197,6 @@ a.pagination-page:hover {
   border-top: 1px solid var(--line);
 }
 
-/* Small screens: full-width, easy-to-tap buttons. */
 @media (max-width: 479px) {
   .dialog-actions .button {
     flex: 1 1 140px;
@@ -3309,8 +3226,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Reporting ---------- */
-
 .report-button {
   gap: 6px;
 }
@@ -3321,7 +3236,6 @@ a.pagination-page:hover {
   height: 14px;
 }
 
-/* Listing page: a quiet secondary action under the main ones. */
 .report-button-quiet {
   justify-self: start;
   padding-inline: 8px;
@@ -3333,7 +3247,6 @@ a.pagination-page:hover {
   color: var(--ink);
 }
 
-/* Inside a message: a small text action at the end of its header line. */
 .report-button-compact {
   min-height: 24px;
   margin-left: auto;
@@ -3397,7 +3310,6 @@ a.pagination-page:hover {
   border-color: var(--ink-soft);
 }
 
-/* The radio's own dot shows the choice; the border only reinforces it. */
 .report-reason:has(input:checked) {
   background: var(--paper);
   border-color: var(--ink);
@@ -3461,9 +3373,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Admin moderation ---------- */
-
-/* The nav entry carries a small lime diamond, so the admin area reads as a different place. */
 .app-nav-admin-mark {
   flex: none;
   width: 8px;
@@ -3492,7 +3401,6 @@ a.pagination-page:hover {
   gap: 10px;
 }
 
-/* A short hazard stripe: restricted area. */
 .admin-eyebrow-mark {
   flex: none;
   width: 28px;
@@ -3512,7 +3420,6 @@ a.pagination-page:hover {
   min-width: 0;
 }
 
-/* Wide screens: the queue and the selected report side by side. */
 @media (min-width: 960px) {
   .admin-workspace {
     grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
@@ -3524,7 +3431,6 @@ a.pagination-page:hover {
   }
 }
 
-/* Small screens: one pane at a time, as separate routes. */
 @media (max-width: 959px) {
   .admin-workspace[data-pane='report'] .report-queue,
   .admin-workspace[data-pane='queue'] .admin-detail {
@@ -3566,7 +3472,6 @@ a.pagination-page:hover {
   border-radius: var(--radius-lg);
 }
 
-/* Open reports: an ink frame and a heavy edge, on top of the "Open" badge. */
 .report-row[data-status='open'] {
   border-color: var(--ink);
   border-left-width: 6px;
@@ -3588,7 +3493,6 @@ a.pagination-page:hover {
   box-shadow: var(--shadow-hard);
 }
 
-/* The selected report points at its detail. */
 @media (min-width: 960px) {
   .report-row[aria-current='true']::after {
     content: '';
@@ -3740,7 +3644,6 @@ a.pagination-page:hover {
   font-size: 0.875rem;
 }
 
-/* The live region stays in place (so it announces) but takes no room while empty. */
 .report-outcome {
   justify-self: start;
   padding: 8px 12px;
@@ -3942,12 +3845,6 @@ a.pagination-page:hover {
   }
 }
 
-/* ---------- Accessibility safety nets ---------- */
-
-/*
- * Windows High Contrast and other forced-colour modes drop box-shadows, which is how focus
- * and the hard shadows are drawn. Give focus a real outline there.
- */
 @media (forced-colors: active) {
   :focus-visible {
     outline: 2px solid CanvasText;
@@ -3964,7 +3861,6 @@ a.pagination-page:hover {
   }
 }
 
-/* Everything that moves is already opt-in; this catches anything added later. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

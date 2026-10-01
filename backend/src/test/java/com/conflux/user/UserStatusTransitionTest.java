@@ -5,10 +5,6 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
-/**
- * Account suspension and restoration are explicit, strict transitions (the admin service
- * makes repeats idempotent); there is no generic status setter.
- */
 class UserStatusTransitionTest {
 
 	@Test

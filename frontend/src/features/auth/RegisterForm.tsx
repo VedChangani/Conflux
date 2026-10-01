@@ -6,7 +6,6 @@ import { errorMessageOf, fieldErrorsOf, type FieldErrors } from '../../lib/formE
 import { authApi } from './authApi'
 import type { RegisterRequest } from './types'
 
-/** The parts of the registration response the success screen shows. */
 export interface RegisteredAccount {
   username: string
   displayName: string
@@ -14,7 +13,6 @@ export interface RegisteredAccount {
 
 const EMPTY_FORM: RegisterRequest = { email: '', username: '', displayName: '', password: '' }
 
-/** Creates an account. Registration does not log the user in. */
 export function RegisterForm({ onRegistered }: { onRegistered: (account: RegisteredAccount) => void }) {
   const [values, setValues] = useState<RegisterRequest>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)

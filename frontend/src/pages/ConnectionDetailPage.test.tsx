@@ -41,7 +41,6 @@ describe('Connection detail', () => {
     expect(people.getByText('@bob')).toBeTruthy()
     expect(people.getByText('Listing owner')).toBeTruthy()
     expect(people.getByText('@ada')).toBeTruthy()
-    // "You" marks the signed-in user's side, from the verified account and the response.
     expect(people.getAllByText('You')).toHaveLength(1)
     expect(people.getByText('@ada').closest('.participant')?.textContent).toContain('You')
 
@@ -58,7 +57,6 @@ describe('Connection detail', () => {
     expect(statusPanel().getByRole('button', { name: 'Reject' })).toBeTruthy()
     expect(statusPanel().queryByRole('button', { name: /Withdraw/ })).toBeNull()
 
-    // No ids, emails or raw enum values.
     const text = document.body.textContent ?? ''
     expect(text).not.toContain('PUBLISHED')
     expect(text).not.toContain('PENDING')

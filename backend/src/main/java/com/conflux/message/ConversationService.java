@@ -18,12 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Conversations of accepted connections. The acting user always comes from the verified
- * JWT ({@link CurrentUser}); only the connection's requester and its listing's owner can
- * see a conversation. There is no way to start a conversation directly: one is created
- * when a connection is accepted ({@link #createFor(Connection)}).
- */
 @Service
 public class ConversationService {
 
@@ -40,13 +34,6 @@ public class ConversationService {
 		this.currentUser = currentUser;
 	}
 
-	/**
-	 * Creates the conversation of a just-accepted connection, or returns the existing one.
-	 * Runs inside the caller's transaction, so a failure here undoes the acceptance too. The
-	 * database guarantees one conversation per connection; a concurrent duplicate insert
-	 * fails with a {@code DataIntegrityViolationException} for the caller to handle.
-	 * @throws IllegalStateException if the connection is not ACCEPTED
-	 */
 	@Transactional
 	public Conversation createFor(Connection connection) {
 		if (connection.getStatus() != ConnectionStatus.ACCEPTED) {
@@ -56,11 +43,6 @@ public class ConversationService {
 			.orElseGet(() -> this.conversationRepository.saveAndFlush(new Conversation(connection)));
 	}
 
-	/**
-	 * The current user's conversations, most recent activity first (latest message, or
-	 * creation when there is none; then id descending). One query for the page and one for
-	 * the page's latest messages, whatever the page size.
-	 */
 	@Transactional(readOnly = true)
 	public PageResponse<ConversationResponse> conversations(int page, int size) {
 		Long userId = this.currentUser.id();
@@ -71,7 +53,6 @@ public class ConversationService {
 				: this.messageRepository.findLatestInConversations(ids)
 					.stream()
 					.collect(Collectors.toMap(m -> m.getConversation().getId(), Function.identity(),
-							// Same timestamp: the higher id is the later message.
 							(a, b) -> Comparator.comparing(Message::getId).compare(a, b) >= 0 ? a : b));
 		return PageResponse.from(rows.map(row -> {
 			Conversation conversation = (Conversation) row[0];
@@ -79,9 +60,6 @@ public class ConversationService {
 		}));
 	}
 
-	/**
-	 * @throws ResponseStatusException 404 unless the current user participates
-	 */
 	@Transactional(readOnly = true)
 	public ConversationResponse conversation(Long conversationId) {
 		Long userId = this.currentUser.id();
@@ -91,11 +69,6 @@ public class ConversationService {
 		return ConversationResponse.from(conversation, userId, latest);
 	}
 
-	/**
-	 * The conversation, with connection, listing, owner and requester loaded, if the user
-	 * participates in it.
-	 * @throws ResponseStatusException 404 otherwise (indistinguishable from a missing one)
-	 */
 	public Conversation participantConversation(Long conversationId, Long userId) {
 		return this.conversationRepository.findForParticipant(conversationId, userId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found."));

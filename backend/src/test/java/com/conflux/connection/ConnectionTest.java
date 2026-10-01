@@ -15,9 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-/**
- * Connection lifecycle rules, without a database.
- */
 class ConnectionTest {
 
 	private final User owner = new User("owner@example.com", "hash", "owner", "Owner");

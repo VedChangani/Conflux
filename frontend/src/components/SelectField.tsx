@@ -12,7 +12,6 @@ interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>,
   onChange: (value: string) => void
 }
 
-/** Labelled native select. A `value` missing from `options` is still shown, as-is. */
 export function SelectField({ label, value, options, onChange, className, ...selectProps }: SelectFieldProps) {
   const id = useId()
   const known = options.some((option) => option.value === value)

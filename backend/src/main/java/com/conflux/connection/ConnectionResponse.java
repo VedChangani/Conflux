@@ -6,13 +6,6 @@ import com.conflux.listing.Listing;
 import com.conflux.listing.ListingStatus;
 import com.conflux.user.User;
 
-/**
- * A connection as seen by one of its two participants. Contains no emails, credentials or
- * security data.
- *
- * @param listing the listing it is about; {@code listing.status} tells whether the
- * opportunity is still public
- */
 public record ConnectionResponse(Long id, ConnectionStatus status, Instant createdAt, Instant updatedAt,
 		ListingSummary listing, Participant requester, Participant owner) {
 
@@ -33,9 +26,6 @@ public record ConnectionResponse(Long id, ConnectionStatus status, Instant creat
 
 	}
 
-	/**
-	 * Must be called while the listing, its owner and the requester are loaded.
-	 */
 	static ConnectionResponse from(Connection connection) {
 		return new ConnectionResponse(connection.getId(), connection.getStatus(), connection.getCreatedAt(),
 				connection.getUpdatedAt(), ListingSummary.from(connection.getListing()),

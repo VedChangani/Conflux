@@ -10,10 +10,6 @@ interface ErrorBoundaryState {
   hasError: boolean
 }
 
-/**
- * Last-resort fallback so an unexpected rendering error outside the router never
- * leaves a blank screen. Errors inside routes are handled by {@link RouteError}.
- */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false }
 

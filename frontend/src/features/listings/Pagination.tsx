@@ -1,20 +1,16 @@
 import { Link } from 'react-router'
 
 interface PaginationProps {
-  /** 1-based. */
   page: number
   totalPages: number
-  /** The link target for a (1-based) page, keeping the rest of the query. */
   hrefFor: (page: number) => string
   onNavigate?: () => void
 }
 
 type PageItem = number | 'gap'
 
-/** First, last, and the pages around the current one, with gaps for the rest. */
 function pageItems(page: number, totalPages: number): PageItem[] {
   const pages = new Set([1, totalPages, page - 1, page, page + 1])
-  // Show a lone skipped page instead of a gap that hides just one number.
   if (page - 3 === 1) pages.add(2)
   if (page + 3 === totalPages) pages.add(totalPages - 1)
   const sorted = [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b)
@@ -29,14 +25,9 @@ function pageItems(page: number, totalPages: number): PageItem[] {
   return items
 }
 
-/**
- * Previous/next plus numbered pages, as real links so every page has a shareable URL.
- * Unavailable directions stay visible but disabled.
- */
 export function Pagination({ page, totalPages, hrefFor, onNavigate }: PaginationProps) {
   const hasPrevious = page > 1
   const hasNext = page < totalPages
-  // Past the end (e.g. an old link): still offer a way back.
   const previousPage = Math.min(page - 1, Math.max(totalPages, 1))
 
   return (

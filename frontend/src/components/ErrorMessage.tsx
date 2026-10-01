@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 interface ErrorMessageProps {
   title?: string
   message?: string
-  /** Optional recovery controls, e.g. a retry button. */
   children?: ReactNode
 }
 

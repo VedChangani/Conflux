@@ -5,10 +5,6 @@ import { TextField } from '../../components/TextField'
 import { errorMessageOf, fieldErrorsOf } from '../../lib/formErrors'
 import { useAuth } from './useAuth'
 
-/**
- * Email/username + password login. On success the session becomes authenticated and
- * the login page redirects; this form only reports failures.
- */
 export function LoginForm({ initialIdentifier = '' }: { initialIdentifier?: string }) {
   const { login } = useAuth()
   const [identifier, setIdentifier] = useState(initialIdentifier)

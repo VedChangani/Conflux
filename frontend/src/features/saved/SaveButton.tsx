@@ -8,30 +8,18 @@ import { useSavedListings } from './useSavedListings'
 
 interface SaveButtonProps {
   listingId: number
-  /** Added to the accessible name where several listings share a page, e.g. on cards. */
   listingTitle?: string
-  /**
-   * The saved state to assume while it is otherwise unknown, e.g. `true` on the saved
-   * listings page. Skips the lookup of the user's saved listings.
-   */
   knownSaved?: boolean
-  /** Called after the API has confirmed a save (`true`) or unsave (`false`). */
   onSavedChange?: (saved: boolean) => void
   block?: boolean
   className?: string
 }
 
-/**
- * Save / Saved toggle for a listing. The pressed state changes only once the API has
- * confirmed the request, and the button is disabled while one is in flight. Anonymous
- * visitors are sent to log in and brought back here afterwards.
- */
 export function SaveButton({ listingId, listingTitle, knownSaved, onSavedChange, block, className }: SaveButtonProps) {
   const { status } = useAuth()
   const { isSaved, checking, ensureLoaded, setSaved } = useSavedListings()
   const redirectToLogin = useLoginRedirect()
   const [busy, setBusy] = useState(false)
-  // A ref as well as state: a second click can arrive before React re-renders the disabled button.
   const busyRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -45,7 +33,6 @@ export function SaveButton({ listingId, listingTitle, knownSaved, onSavedChange,
 
   const confirmed = authenticated ? isSaved(listingId) : undefined
   const saved = authenticated && (confirmed ?? knownSaved ?? false)
-  // Still finding out: don't offer "Save" for something that may already be saved.
   const unknown = authenticated && confirmed === undefined && knownSaved === undefined && checking
 
   async function handleClick() {
@@ -67,7 +54,6 @@ export function SaveButton({ listingId, listingTitle, knownSaved, onSavedChange,
       onSavedChange?.(next)
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        // The session ended; the API client has already signed the user out.
         redirectToLogin()
       } else {
         setError(saveErrorMessage(caught, next))
@@ -87,7 +73,6 @@ export function SaveButton({ listingId, listingTitle, knownSaved, onSavedChange,
         variant="secondary"
         className={classes}
         block={block}
-        // Starts with the visible text, so it still matches what is on screen.
         aria-label={listingTitle ? `${label} ${listingTitle}` : undefined}
         aria-pressed={authenticated ? saved : undefined}
         loading={busy}

@@ -1,10 +1,3 @@
-/**
- * Persists the JWT access token sent as `Authorization: Bearer <token>`.
- *
- * Uses localStorage so a session survives reloads. If storage turns out to be
- * unusable (private mode, blocked site data), the token is kept in memory for this
- * page only. Token values are never logged.
- */
 const STORAGE_KEY = 'conflux.accessToken'
 
 let memoryOnly = false
@@ -38,7 +31,6 @@ export function clearAccessToken(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY)
   } catch {
-    // Storage unusable: nothing was persisted.
   }
 }
 

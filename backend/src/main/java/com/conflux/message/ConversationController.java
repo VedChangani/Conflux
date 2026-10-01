@@ -16,11 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Conversations of the authenticated user and their messages. Conversations are created
- * by accepting a connection, so there is no endpoint to start one. All endpoints require a
- * bearer token and act for the token's user.
- */
 @RestController
 @RequestMapping(ConversationController.BASE_PATH)
 public class ConversationController {

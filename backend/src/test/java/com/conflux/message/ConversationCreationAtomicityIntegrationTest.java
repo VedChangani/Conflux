@@ -26,10 +26,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Accepting a connection and creating its conversation are one transaction: if creating the
- * conversation fails, the connection stays PENDING.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

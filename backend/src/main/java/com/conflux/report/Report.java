@@ -18,13 +18,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/**
- * A user's report about a user, listing or message, reviewed by an administrator. The
- * target is identified only by {@code targetType} + {@code targetId} (no polymorphic
- * foreign key); {@link ReportService} resolves it. The status changes only through
- * {@link #resolve} and {@link #dismiss}, both of which require OPEN. Submitting a report
- * never changes the target: moderation is a separate, explicit admin action.
- */
 @Entity
 @Table(name = "reports")
 public class Report {
@@ -72,16 +65,9 @@ public class Report {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected Report() {
 	}
 
-	/**
-	 * A new OPEN report.
-	 * @param details optional, already normalized (trimmed; blank as {@code null})
-	 */
 	public Report(User reporter, ReportTargetType targetType, Long targetId, ReportReason reason, String details) {
 		this.reporter = Objects.requireNonNull(reporter, "reporter must not be null");
 		this.targetType = Objects.requireNonNull(targetType, "targetType must not be null");
@@ -91,18 +77,10 @@ public class Report {
 		this.status = ReportStatus.OPEN;
 	}
 
-	/**
-	 * OPEN to RESOLVED (the report was valid), recording who reviewed it and when.
-	 * @throws ReportStateException unless OPEN
-	 */
 	public void resolve(User reviewer, String note) {
 		review(ReportStatus.RESOLVED, reviewer, note, "resolved");
 	}
 
-	/**
-	 * OPEN to DISMISSED (no action needed), recording who reviewed it and when.
-	 * @throws ReportStateException unless OPEN
-	 */
 	public void dismiss(User reviewer, String note) {
 		review(ReportStatus.DISMISSED, reviewer, note, "dismissed");
 	}
@@ -123,7 +101,6 @@ public class Report {
 		this.createdAt = now();
 	}
 
-	// Same approach as the other entities: UTC, truncated to the DATETIME(6) precision.
 	private static Instant now() {
 		return Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}

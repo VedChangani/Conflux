@@ -8,10 +8,6 @@ const LABEL: Record<BadgeKind, (status: string) => string> = {
   listing: listingStatusLabel,
 }
 
-/**
- * A report, account or listing status as text plus an icon; colour only reinforces it.
- * `data-status` drives the styling. Reuses the connection badge's frame.
- */
 export function AdminStatusBadge({ kind, status }: { kind: BadgeKind; status: string }) {
   return (
     <span className="status-badge admin-badge" data-kind={kind} data-status={status.toLowerCase()}>
@@ -26,7 +22,6 @@ function BadgeIcon({ status }: { status: string }) {
   let shape
   switch (status) {
     case 'OPEN':
-      // A filled dot in a ring: the one that wants attention.
       shape = (
         <>
           <circle cx="8" cy="8" r="5.75" {...stroke} strokeWidth={1.5} />

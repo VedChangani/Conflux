@@ -4,9 +4,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Profile normalization and URL rules, without a database.
- */
 class UserProfileTest {
 
 	@Test

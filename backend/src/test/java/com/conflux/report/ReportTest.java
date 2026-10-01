@@ -10,9 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-/**
- * Report lifecycle rules, without a database.
- */
 class ReportTest {
 
 	private final User reporter = new User("reporter@example.com", "hash", "reporter", "Reporter");

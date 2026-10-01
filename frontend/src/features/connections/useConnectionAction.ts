@@ -7,7 +7,6 @@ import { usePendingRequests } from './usePendingRequests'
 
 export interface ActionError {
   message: string
-  /** False when the same action cannot succeed (403, 404, 409); its controls are withdrawn. */
   retryable: boolean
 }
 
@@ -17,19 +16,9 @@ const DONE: Record<ConnectionAction, string> = {
   withdraw: 'Request withdrawn.',
 }
 
-/**
- * Runs accept, reject or withdraw for one connection. One request at a time; the connection
- * is only updated (through `onUpdated`) with what the backend returned:
- * - accept and reject answer with the updated connection;
- * - withdraw answers 204 without a body, so the connection is read again (if that fails,
- *   the 204 itself confirms the WITHDRAWN status);
- * - a 409 means it changed elsewhere, so it is read again to show its real status.
- * A 401 ends the session; the protected route then sends the user to log in.
- */
 export function useConnectionAction(connection: Connection, onUpdated: (connection: Connection) => void) {
   const { refresh: refreshPendingCount } = usePendingRequests()
   const [running, setRunning] = useState<ConnectionAction | null>(null)
-  // A ref as well as state: a second click can arrive before the disabled buttons render.
   const runningRef = useRef(false)
   const [error, setError] = useState<ActionError | null>(null)
   const [announcement, setAnnouncement] = useState('')
@@ -63,7 +52,6 @@ export function useConnectionAction(connection: Connection, onUpdated: (connecti
         try {
           onUpdated(await connectionsApi.detail(id))
         } catch {
-          // The message already explains; the old status stays until the next load.
         }
         refreshPendingCount()
       }

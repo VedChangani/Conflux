@@ -53,24 +53,16 @@ function countSummary(page: PageResponse<Connection>): string {
   return `Showing ${numberFormat.format(from)}–${numberFormat.format(to)} of ${numberFormat.format(total)} ${noun}`
 }
 
-/**
- * The user's sent or received requests, newest first, filtered by status and paged through
- * the URL (`?status=…&page=…`, page 1-based). Answering or withdrawing a request updates its
- * row in place with what the backend returned; the list itself is not reloaded, so a row
- * that no longer matches the status filter stays visible, showing its new status.
- */
 export function ConnectionList({ box }: { box: ConnectionBox }) {
   const [params] = useSearchParams()
   const location = useLocation()
   const { account } = useAuth()
   const query = readConnectionsQuery(params)
-  // A string, derived on its own so the request only depends on the URL.
   const apiSearch = toConnectionsApiSearch(readConnectionsQuery(params))
   const copy = COPY[box]
 
   const load = useCallback((signal: AbortSignal) => connectionsApi.list(box, apiSearch, signal), [box, apiSearch])
   const result = useAsync(load)
-  // Connections as the backend returned them after an action on this page.
   const [updates, setUpdates] = useState<ReadonlyMap<number, Connection>>(() => new Map())
   const headingRef = useRef<HTMLHeadingElement>(null)
 
@@ -208,15 +200,10 @@ export function ConnectionList({ box }: { box: ConnectionBox }) {
   )
 }
 
-/**
- * The fetched connection, or the one an action returned if that is at least as recent. A
- * later fetch carries a newer `updatedAt` and so always wins: the backend stays authoritative.
- */
 function newest(fetched: Connection, updated: Connection | undefined): Connection {
   return updated && Date.parse(updated.updatedAt) >= Date.parse(fetched.updatedAt) ? updated : fetched
 }
 
-/** Row-shaped placeholders for a first load. The status text announces it. */
 function ConnectionListSkeleton() {
   return (
     <div className="connection-list" aria-hidden="true">

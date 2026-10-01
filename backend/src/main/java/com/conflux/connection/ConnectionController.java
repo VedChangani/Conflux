@@ -15,10 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Interest in listings and the private connections that result. All endpoints require a
- * bearer token and act for the token's user; no endpoint accepts a user id.
- */
 @RestController
 public class ConnectionController {
 
@@ -32,9 +28,6 @@ public class ConnectionController {
 		this.connectionService = connectionService;
 	}
 
-	/**
-	 * 201 with the new PENDING connection, or 200 with the existing PENDING/ACCEPTED one.
-	 */
 	@PostMapping(INTEREST_PATH)
 	public ResponseEntity<ConnectionResponse> expressInterest(@PathVariable Long id) {
 		InterestResult result = this.connectionService.expressInterest(id);
@@ -70,9 +63,6 @@ public class ConnectionController {
 		return this.connectionService.reject(id);
 	}
 
-	/**
-	 * Withdraws the request (PENDING to WITHDRAWN); the record itself is kept.
-	 */
 	@DeleteMapping(BASE_PATH + "/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void withdraw(@PathVariable Long id) {

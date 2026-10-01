@@ -20,10 +20,6 @@ function authenticated(account: Account): AuthState {
   return { status: 'authenticated', account, verificationFailed: false, loggedOut: false }
 }
 
-/**
- * Checks the stored token via `/auth/me` and returns the resulting state. A rejected
- * token (401) has already been cleared by the API client; any other failure keeps it.
- */
 async function checkStoredToken(): Promise<AuthState> {
   try {
     return authenticated(await authApi.me())
@@ -37,11 +33,9 @@ async function checkStoredToken(): Promise<AuthState> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => (hasAccessToken() ? UNVERIFIED : ANONYMOUS))
-  // Bumped on every login/logout so a slower, older request cannot overwrite a newer session.
   const sessionVersion = useRef(0)
   const verifying = useRef(false)
 
-  /** Confirms the stored token. At most one check runs at a time. */
   const verifyStoredToken = useCallback(() => {
     if (verifying.current) {
       return
@@ -56,14 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Once per app start. The in-flight guard also absorbs StrictMode's second effect run.
   useEffect(() => {
     if (hasAccessToken()) {
       verifyStoredToken()
     }
   }, [verifyStoredToken])
 
-  // Any request whose token is rejected ends the session; the API client has already cleared the token.
   useEffect(
     () =>
       onUnauthorized(() => {
@@ -79,7 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [verifyStoredToken])
 
   const login = useCallback(async (credentials: LoginRequest) => {
-    // A failed login throws here, before anything about the current session changes.
     const { accessToken } = await authApi.login(credentials)
     const version = ++sessionVersion.current
     setAccessToken(accessToken)
@@ -106,7 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState((current) => (current.status === 'authenticated' ? authenticated(account) : current))
       }
     } catch {
-      // Keep the current account; a rejected token has already ended the session.
     }
   }, [])
 

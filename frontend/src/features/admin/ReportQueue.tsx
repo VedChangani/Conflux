@@ -36,11 +36,6 @@ interface ReportQueueProps {
   selectedId: number | null
 }
 
-/**
- * The report queue: one status at a time (OPEN by default, as on the backend), newest first,
- * paged through the URL (`?status=…&page=…&size=…`, page 1-based). Filters, paging and the
- * page size are links or URL changes, so every view of the queue can be shared or reloaded.
- */
 export function ReportQueue({ result, selectedId }: ReportQueueProps) {
   const [params] = useSearchParams()
   const location = useLocation()
@@ -51,7 +46,6 @@ export function ReportQueue({ result, selectedId }: ReportQueueProps) {
   const knownStatus = (REPORT_STATUSES as readonly string[]).includes(query.status)
   const errorKind = result.status === 'error' ? adminErrorKind(result.error) : null
 
-  // A 403 means this account is no longer an active admin: re-read it so the admin area closes.
   useEffect(() => {
     if (errorKind === 'forbidden') {
       void refreshAccount()
@@ -182,10 +176,6 @@ export function ReportQueue({ result, selectedId }: ReportQueueProps) {
   )
 }
 
-/**
- * One queue entry, with exactly the fields of `ReportSummaryResponse`. OPEN entries carry the
- * "Open" badge (text and icon) and a solid marker edge, so they stand out without colour.
- */
 function ReportQueueItem({ report, selected, search }: { report: ReportSummary; selected: boolean; search: string }) {
   const target = `${targetTypeLabel(report.targetType)} #${report.targetId}`
   return (
@@ -219,7 +209,6 @@ function ReportQueueItem({ report, selected, search }: { report: ReportSummary; 
   )
 }
 
-/** Row-shaped placeholders for a first load. The status text announces it. */
 function ReportQueueSkeleton() {
   return (
     <div className="report-queue-list" aria-hidden="true">

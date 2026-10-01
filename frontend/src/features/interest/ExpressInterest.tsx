@@ -8,7 +8,6 @@ import type { ListingDetail } from '../listings/types'
 import { interestApi } from './interestApi'
 import { interestErrorOf, type InterestError } from './interestErrors'
 
-/** What the backend reported: a new request, an existing pending one, or an accepted one. */
 type Outcome = 'sent' | 'pending' | 'accepted'
 
 const OUTCOMES: Record<Outcome, { label: string; title: string; text: string }> = {
@@ -29,19 +28,12 @@ const OUTCOMES: Record<Outcome, { label: string; title: string; text: string }> 
   },
 }
 
-/** A 200 for a request that is neither pending nor accepted is outside the contract; treat it as final. */
 const UNEXPECTED_STATE: InterestError = {
   title: 'Interest can’t be sent',
   message: 'Your earlier request for this listing is closed, so interest can’t be sent again.',
   retryable: false,
 }
 
-/**
- * The listing page's primary action. It only reports what the backend answered: a sent
- * request stays pending until the owner accepts it. The current request status is not
- * known in advance (the API offers no lookup for one listing), so the button is offered
- * until the user acts; asking again is safe and returns the existing request.
- */
 export function ExpressInterest({ listing }: { listing: ListingDetail }) {
   const { status, account } = useAuth()
   const redirectToLogin = useLoginRedirect()
@@ -52,7 +44,6 @@ export function ExpressInterest({ listing }: { listing: ListingDetail }) {
   const resultRef = useRef<HTMLDivElement>(null)
 
   const final = outcome !== null || (error !== null && !error.retryable)
-  // The button disappears once there is a final answer; keep keyboard focus on that answer.
   useEffect(() => {
     if (final) {
       resultRef.current?.focus()
@@ -70,7 +61,6 @@ export function ExpressInterest({ listing }: { listing: ListingDetail }) {
     )
   }
 
-  // Both ids come from the server: the verified session and the listing response.
   if (account.id === listing.owner.id) {
     return (
       <div className="interest">
@@ -101,7 +91,6 @@ export function ExpressInterest({ listing }: { listing: ListingDetail }) {
       }
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        // The session ended; the API client has already signed the user out.
         redirectToLogin()
       } else {
         setError(interestErrorOf(caught))

@@ -15,11 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The read-only moderation audit log for administrators ({@code ROLE_ADMIN}, see
- * SecurityConfig). Entries are written by the moderation operations themselves; there is
- * no endpoint to create, change or delete them.
- */
 @RestController
 @RequestMapping(AdminModerationActionController.BASE_PATH)
 public class AdminModerationActionController {
@@ -32,9 +27,6 @@ public class AdminModerationActionController {
 		this.moderationActionService = moderationActionService;
 	}
 
-	/**
-	 * Newest first; every filter is optional and they are combined with AND.
-	 */
 	@GetMapping
 	public PageResponse<ModerationActionResponse> list(@RequestParam(required = false) ModerationActionType actionType,
 			@RequestParam(required = false) ReportTargetType targetType,

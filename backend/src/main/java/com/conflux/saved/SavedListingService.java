@@ -17,13 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Saving (bookmarking) marketplace listings. The acting user always comes from the
- * verified JWT ({@link CurrentUser}); nothing here accepts a user id from the caller.
- * Saving and unsaving are idempotent: a request that changes nothing is answered normally
- * and does not count toward the user's rate limit (429), which is checked only after the
- * 403/404 checks.
- */
 @Service
 public class SavedListingService {
 
@@ -48,17 +41,6 @@ public class SavedListingService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * Saves a PUBLISHED listing for the current user. Saving an already saved listing does
-	 * nothing. Owners may save their own listings.
-	 * <p>
-	 * Deliberately not one transaction: if a concurrent request inserts the same pair first,
-	 * the unique constraint fails only the insert's own transaction, and the outcome is the
-	 * same as a normal repeated save.
-	 * @throws ResponseStatusException 404 unless the listing exists and is PUBLISHED
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user saved too
-	 * often recently
-	 */
 	public void save(Long listingId) {
 		User user = this.userService.currentActiveUser();
 		Listing listing = this.listingRepository.findPublicById(listingId)
@@ -71,17 +53,9 @@ public class SavedListingService {
 			this.savedListingRepository.saveAndFlush(new SavedListing(user, listing));
 		}
 		catch (DataIntegrityViolationException ex) {
-			// Lost a race against an identical save: the listing is saved, which is what was asked.
 		}
 	}
 
-	/**
-	 * Removes the current user's save of the listing, if any. Unsaving something that is not
-	 * saved (or does not exist) does nothing; the listing's status does not matter, so a save
-	 * of a listing that is no longer public can still be removed.
-	 * @throws com.conflux.ratelimit.RateLimitExceededException (429) if the user unsaved too
-	 * often recently
-	 */
 	@Transactional
 	public void unsave(Long listingId) {
 		User user = this.userService.currentActiveUser();
@@ -92,10 +66,6 @@ public class SavedListingService {
 		this.savedListingRepository.deleteByUserIdAndListingId(user.getId(), listingId);
 	}
 
-	/**
-	 * The current user's saved listings that are currently PUBLISHED, most recently saved
-	 * first.
-	 */
 	@Transactional(readOnly = true)
 	public PageResponse<SavedListingResponse> savedListings(int page, int size) {
 		return PageResponse.from(this.savedListingRepository

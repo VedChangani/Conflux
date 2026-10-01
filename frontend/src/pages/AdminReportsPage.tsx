@@ -7,15 +7,9 @@ import { readReportsQuery, toReportsApiSearch } from '../features/admin/reportQu
 import { parseId } from '../lib/ids'
 import { useAsync } from '../lib/useAsync'
 
-/**
- * `/admin/reports`: the report queue, plus the selected report (`/admin/reports/:id`). Wide
- * screens show both side by side; small screens show one at a time (`data-pane` says which).
- * Rendered behind {@link AdminRoute}.
- */
 export function AdminReportsPage() {
   const params = useParams()
   const [searchParams] = useSearchParams()
-  // A string, derived on its own so the request only depends on the URL.
   const apiSearch = toReportsApiSearch(readReportsQuery(searchParams))
   const load = useCallback((signal: AbortSignal) => adminApi.reports(apiSearch, signal), [apiSearch])
   const result = useAsync(load)
@@ -45,7 +39,6 @@ export function AdminReportsPage() {
   )
 }
 
-/** `/admin/reports` on a wide screen: the space next to the queue before a report is chosen. */
 export function AdminReportsIndex() {
   return (
     <div className="report-panel report-placeholder">

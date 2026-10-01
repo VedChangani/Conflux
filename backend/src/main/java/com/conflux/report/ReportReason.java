@@ -1,8 +1,5 @@
 package com.conflux.report;
 
-/**
- * Why something was reported.
- */
 public enum ReportReason {
 
 	SPAM,

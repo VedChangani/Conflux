@@ -40,7 +40,6 @@ describe('Reporting a profile', () => {
     await reportAs(/^Harassment/)
 
     expect(reportBodies(requests)).toEqual([{ targetType: 'USER', targetId: 7, reason: 'HARASSMENT', details: null }])
-    // The id is sent, never shown.
     expect(document.querySelector('.profile')?.textContent).not.toMatch(/\b7\b/)
   })
 
@@ -104,7 +103,6 @@ describe('Reporting a message', () => {
     fireEvent.click(button)
 
     const dialog = within(screen.getByRole('dialog', { name: 'Report message' }))
-    // An excerpt identifies the message; the full text stays in the thread.
     const description = dialog.getByText(/^Message from Bob Brown: “Send the deposit/)
     expect(description.textContent?.endsWith('…”')).toBe(true)
     fireEvent.change(dialog.getByLabelText('Details (optional)'), { target: { value: ' Asked me to pay outside Conflux. ' } })
@@ -113,7 +111,6 @@ describe('Reporting a message', () => {
     expect(reportBodies(requests)).toEqual([
       { targetType: 'MESSAGE', targetId: 501, reason: 'SCAM_OR_FRAUD', details: 'Asked me to pay outside Conflux.' },
     ])
-    // Reporting does not touch the conversation: nothing is reloaded or removed.
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(thread.getAllByRole('listitem')).toHaveLength(2)

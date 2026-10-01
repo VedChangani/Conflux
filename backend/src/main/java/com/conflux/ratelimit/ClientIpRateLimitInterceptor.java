@@ -6,12 +6,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-/**
- * Limits anonymous POST requests by client IP before the handler runs, so requests that
- * would fail validation or authentication are counted too. The IP is the connection's
- * remote address; proxy headers such as {@code X-Forwarded-For} are client-controlled and
- * never used.
- */
 class ClientIpRateLimitInterceptor implements HandlerInterceptor {
 
 	private final RateLimiter rateLimiter;

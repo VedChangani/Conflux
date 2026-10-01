@@ -25,17 +25,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
-/**
- * Security for a stateless JSON API authenticated with JWT bearer tokens
- * ({@code Authorization: Bearer <token>}). Registration, login, health, published
- * listing browsing/detail, public user profiles and the error page are public;
- * {@code /api/v1/admin/**} requires {@code ROLE_ADMIN}; everything else requires a valid
- * token.
- * <p>
- * Authentication (401) and authorization (403) failures raised by the filter chain are
- * handed to Spring MVC's exception resolvers so that they are rendered by
- * {@link com.conflux.common.web.GlobalExceptionHandler} as ProblemDetail responses.
- */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
 
@@ -62,11 +51,9 @@ public class SecurityConfig {
 				.authenticationEntryPoint(entryPoint)
 				.accessDeniedHandler(accessDeniedHandler))
 			.authorizeHttpRequests(auth -> auth
-				// Whole admin namespace: anonymous -> 401, authenticated without ROLE_ADMIN -> 403.
 				.requestMatchers(ApiPaths.ADMIN + "/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, HealthController.HEALTH_PATH).permitAll()
 				.requestMatchers(HttpMethod.POST, AuthController.REGISTER_PATH, AuthController.LOGIN_PATH).permitAll()
-				// Must precede the public rule below, whose "/*" would also match "/mine".
 				.requestMatchers(HttpMethod.GET, ListingController.MINE_PATH, ListingController.MINE_PATH + "/**")
 				.authenticated()
 				.requestMatchers(HttpMethod.GET, ListingController.BASE_PATH, ListingController.BASE_PATH + "/*")

@@ -1,6 +1,5 @@
 import type { ReportReason } from './types'
 
-/** How each reason is offered to the reporter. */
 export const REASON_COPY: Record<ReportReason, { label: string; hint: string }> = {
   SPAM: { label: 'Spam', hint: 'Unwanted promotion or repetitive content.' },
   SCAM_OR_FRAUD: { label: 'Scam or fraud', hint: 'An attempt to deceive, or to get money or personal data.' },

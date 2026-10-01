@@ -2,7 +2,6 @@ import { Link } from 'react-router'
 import { StatusPanel } from '../components/StatusPanel'
 import { paths } from './paths'
 
-/** Router `errorElement`: shown when a route throws while rendering. */
 export function RouteError() {
   return (
     <main className="app-main">

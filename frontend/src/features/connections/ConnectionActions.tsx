@@ -26,20 +26,10 @@ interface ConnectionActionsProps {
   connection: Connection
   role: ConnectionRole
   onUpdated: (connection: Connection) => void
-  /**
-   * Accessible names for the buttons where several requests share a page, e.g.
-   * "Accept request from Ada Lovelace for Ledgerly". They start with the visible text.
-   */
   labelFor?: (action: ConnectionAction) => string
-  /** Shorter wording for list rows. */
   compact?: boolean
 }
 
-/**
- * Accept / reject (listing owner) or withdraw (requester) for a pending request, the way
- * into the conversation of an accepted one, or a note that nothing more can be done. Reject and withdraw are final, so they ask for
- * confirmation first. Buttons are disabled while a request runs.
- */
 export function ConnectionActions({ connection, role, onUpdated, labelFor, compact = false }: ConnectionActionsProps) {
   const { run, running, error, announcement } = useConnectionAction(connection, onUpdated)
   const [confirming, setConfirming] = useState<ConfirmableAction | null>(null)
@@ -64,7 +54,6 @@ export function ConnectionActions({ connection, role, onUpdated, labelFor, compa
   async function perform(action: ConnectionAction) {
     await run(action)
     setConfirming(null)
-    // The buttons may be gone now; keep focus on this block, which announces the outcome.
     containerRef.current?.focus()
   }
 
@@ -79,7 +68,6 @@ export function ConnectionActions({ connection, role, onUpdated, labelFor, compa
     }
   }
 
-  // The running button shows its loading text instead, so it drops the longer name.
   const label = (action: ConnectionAction) => (running === action ? undefined : labelFor?.(action))
 
   let controls = null
@@ -145,7 +133,6 @@ export function ConnectionActions({ connection, role, onUpdated, labelFor, compa
       </div>
     )
   } else if (connection.status === 'ACCEPTED' && role !== null) {
-    // Accepting opened a conversation; the messages page finds it among the user's own.
     const other = role === 'owner' ? connection.requester : connection.owner
     controls = (
       <Link

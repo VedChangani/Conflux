@@ -46,7 +46,6 @@ describe('Conversation detail', () => {
     )
     expect(facts.getByText('Latest').nextElementSibling?.textContent).toBe('Happy to talk on Thursday.')
 
-    // No ids or backend-only fields.
     const conversationText = screen.getByRole('region', { name: 'Bob Brown' }).textContent ?? ''
     expect(conversationText).not.toMatch(/\b(31|21|501)\b/)
     expect(conversationText).not.toContain(ACCOUNT.email)
@@ -76,7 +75,6 @@ describe('Conversation detail', () => {
     expect(await screen.findByRole('heading', { name: 'Conversation not found' })).toBeTruthy()
     expect(screen.getByText('This conversation doesn’t exist, or you’re not part of it.')).toBeTruthy()
     expect(document.body.textContent).not.toContain(LEAKY_DETAIL)
-    // Without access, its messages are not requested either.
     expect(count(requests, 'GET /conversations/77/messages?page=0&size=50')).toBe(0)
     expect(screen.queryByRole('textbox')).toBeNull()
   })
@@ -165,7 +163,6 @@ describe('Message list', () => {
     const { requests } = signedIn({
       [DETAIL]: () => json(conversation()),
       [MESSAGES]: () => json(pageOf(newest, { size: 50, totalElements: 52 })),
-      // The page shifted by one since: its first message was already shown.
       'GET /conversations/31/messages?page=1&size=50': () =>
         json(
           pageOf(

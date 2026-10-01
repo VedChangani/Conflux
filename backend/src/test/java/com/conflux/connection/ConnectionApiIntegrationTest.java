@@ -44,12 +44,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * HTTP behaviour of interest and connections: full context, real security filter chain,
- * Flyway-migrated H2 database. Alice owns two published listings and the draft, archived
- * and suspended ones; Bob owns one published listing; Charlie owns nothing. Connections
- * are brought into each status through the real endpoints.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -119,8 +113,6 @@ class ConnectionApiIntegrationTest {
 		this.jdbc.update("UPDATE listings SET status = 'SUSPENDED' WHERE id = ?", this.suspended);
 	}
 
-	// Messages, conversations (created on accept), connections and saves reference listings
-	// and users, so they are deleted first.
 	@AfterEach
 	void cleanDatabase() {
 		cleanConnections();
@@ -128,8 +120,6 @@ class ConnectionApiIntegrationTest {
 		this.jdbc.update("DELETE FROM listings");
 		this.jdbc.update("DELETE FROM users");
 	}
-
-	// ---- Express interest --------------------------------------------------------------
 
 	@Test
 	void expressingInterestCreatesAPendingConnectionFromTheTokenUserToTheListingOwner() throws Exception {
@@ -179,7 +169,6 @@ class ConnectionApiIntegrationTest {
 		assertThat(rows(this.charlie, this.aliceListing)).isZero();
 		assertThat(rows(this.bob, this.aliceListing)).isEqualTo(1);
 
-		// Collections cannot be pointed at another user either.
 		assertThat(ids(sent(this.charlieToken, "requesterId=" + this.bob.getId()))).isEmpty();
 		assertThat(ids(received(this.charlieToken, "ownerId=" + this.alice.getId()))).isEmpty();
 	}
@@ -281,8 +270,6 @@ class ConnectionApiIntegrationTest {
 		assertThat(rows(this.bob, this.aliceListing)).isEqualTo(1);
 	}
 
-	// ---- Sent ----------------------------------------------------------------------------
-
 	@Test
 	void sentContainsOnlyTheCallersRequests() throws Exception {
 		long bobToAlice = connectionIn(ConnectionStatus.PENDING, this.bobToken, this.aliceListing);
@@ -307,8 +294,8 @@ class ConnectionApiIntegrationTest {
 		long toBob = connectionIn(ConnectionStatus.REJECTED, this.charlieToken, this.bobListing);
 		Instant base = Instant.parse("2026-07-01T09:00:00Z");
 		setCreatedAt(toAlice, base.plusSeconds(60));
-		setCreatedAt(toAlice2, base); // oldest
-		setCreatedAt(toBob, base.plusSeconds(60)); // same as toAlice: higher id first
+		setCreatedAt(toAlice2, base);
+		setCreatedAt(toBob, base.plusSeconds(60));
 
 		assertThat(ids(sent(this.charlieToken, ""))).containsExactly(toBob, toAlice, toAlice2);
 		assertThat(ids(sent(this.charlieToken, "status=PENDING"))).containsExactly(toAlice);
@@ -327,8 +314,6 @@ class ConnectionApiIntegrationTest {
 
 		assertInvalidQueriesRejected(CONNECTIONS + "/sent", this.charlieToken);
 	}
-
-	// ---- Received ------------------------------------------------------------------------
 
 	@Test
 	void receivedContainsOnlyConnectionsForListingsTheCallerOwns() throws Exception {
@@ -350,9 +335,9 @@ class ConnectionApiIntegrationTest {
 		long charliePending = connectionIn(ConnectionStatus.PENDING, this.charlieToken, this.aliceListing);
 		long charlieAccepted = connectionIn(ConnectionStatus.ACCEPTED, this.charlieToken, this.aliceListing2);
 		Instant base = Instant.parse("2026-07-02T09:00:00Z");
-		setCreatedAt(bobPending, base.plusSeconds(120)); // newest
+		setCreatedAt(bobPending, base.plusSeconds(120));
 		setCreatedAt(charliePending, base);
-		setCreatedAt(charlieAccepted, base); // same as charliePending: higher id first
+		setCreatedAt(charlieAccepted, base);
 
 		assertThat(ids(received(this.aliceToken, ""))).containsExactly(bobPending, charlieAccepted, charliePending);
 		assertThat(ids(received(this.aliceToken, "status=PENDING"))).containsExactly(bobPending, charliePending);
@@ -364,8 +349,6 @@ class ConnectionApiIntegrationTest {
 
 		assertInvalidQueriesRejected(CONNECTIONS + "/received", this.aliceToken);
 	}
-
-	// ---- Detail --------------------------------------------------------------------------
 
 	@Test
 	void onlyTheTwoParticipantsCanViewAConnection() throws Exception {
@@ -390,8 +373,6 @@ class ConnectionApiIntegrationTest {
 			.andExpect(status().isUnauthorized())
 			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 	}
-
-	// ---- Accept / reject / withdraw ------------------------------------------------------
 
 	@Test
 	void listingOwnerAcceptsAPendingRequest() throws Exception {
@@ -436,7 +417,6 @@ class ConnectionApiIntegrationTest {
 		withdraw(this.aliceToken, id).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.detail").value("Only the requester can withdraw this request."));
 
-		// Anyone else cannot even see it.
 		for (ResultActions attempt : List.of(accept(this.charlieToken, id), reject(this.charlieToken, id),
 				withdraw(this.charlieToken, id))) {
 			attempt.andExpect(status().isNotFound()).andExpect(jsonPath("$.detail").value("Connection not found."));
@@ -465,8 +445,6 @@ class ConnectionApiIntegrationTest {
 		}
 	}
 
-	// ---- Listing interaction -------------------------------------------------------------
-
 	@Test
 	void connectionHistorySurvivesArchivedAndSuspendedListings() throws Exception {
 		long accepted = connectionIn(ConnectionStatus.ACCEPTED, this.bobToken, this.aliceListing);
@@ -486,13 +464,10 @@ class ConnectionApiIntegrationTest {
 		assertThat(ids(received(this.aliceToken, ""))).containsExactlyInAnyOrder(accepted, pending);
 		assertThat(ids(sent(this.bobToken, ""))).containsExactly(accepted);
 
-		// New interest still requires a PUBLISHED listing.
 		interest(this.charlieToken, this.aliceListing).andExpect(status().isNotFound());
 		interest(this.bobToken, this.aliceListing2).andExpect(status().isNotFound());
 		assertThat(connectionCount()).isEqualTo(2);
 	}
-
-	// ---- Suspended accounts ----------------------------------------------------------------
 
 	@Test
 	void suspendedAccountsCannotWriteButCanStillRead() throws Exception {
@@ -518,8 +493,6 @@ class ConnectionApiIntegrationTest {
 		assertThat(connectionCount()).isEqualTo(2);
 	}
 
-	// ---- Data exposure ---------------------------------------------------------------------
-
 	@Test
 	void noConnectionResponseContainsPrivateOrSecurityData() throws Exception {
 		long id = connectionIn(ConnectionStatus.PENDING, this.bobToken, this.aliceListing);
@@ -532,26 +505,20 @@ class ConnectionApiIntegrationTest {
 		for (String response : responses) {
 			assertNoPrivateData(response);
 		}
-		// Entities would expose their associations and internals; the DTO has a fixed shape.
 		detail(this.aliceToken, id).andExpect(jsonPath("$.requester.email").doesNotExist())
 			.andExpect(jsonPath("$.owner.email").doesNotExist())
 			.andExpect(jsonPath("$.listing.owner").doesNotExist())
 			.andExpect(jsonPath("$.listing.description").doesNotExist());
 	}
 
-	// ---- Regression ------------------------------------------------------------------------
-
 	@Test
 	void savedListingsDiscoveryListingManagementAndAuthStillWork() throws Exception {
 		long id = connectionIn(ConnectionStatus.PENDING, this.bobToken, this.aliceListing);
 
-		// Saved listings.
 		perform(post(LISTINGS + "/" + this.aliceListing + "/save"), this.bobToken).andExpect(status().isNoContent());
 		perform(get("/api/v1/saved-listings"), this.bobToken).andExpect(status().isOk())
 			.andExpect(jsonPath("$.content[0].id").value(this.aliceListing));
-		// Discovery: the three published listings.
 		this.mockMvc.perform(get(LISTINGS)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3));
-		// Editing a listing with a pending connection keeps it published; the connection shows the new title.
 		this.mockMvc
 			.perform(authorized(put(LISTINGS + "/" + this.aliceListing), this.aliceToken)
 				.contentType(MediaType.APPLICATION_JSON)
@@ -559,19 +526,12 @@ class ConnectionApiIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("PUBLISHED"));
 		detail(this.bobToken, id).andExpect(jsonPath("$.listing.title").value("Alice opportunity, edited"));
-		// Owner dashboard and the refactored /me (both now resolve the user via CurrentUser).
 		perform(get(LISTINGS + "/mine"), this.aliceToken).andExpect(status().isOk())
 			.andExpect(jsonPath("$.totalElements").value(5));
 		perform(get("/api/v1/auth/me"), this.charlieToken).andExpect(status().isOk())
 			.andExpect(jsonPath("$.username").value("charlie"));
 	}
 
-	// ---- Helpers ------------------------------------------------------------------------
-
-	/**
-	 * Creates a connection from the token's user to the listing and brings it into
-	 * {@code status} through the real endpoints (the listing owner answers).
-	 */
 	private long connectionIn(ConnectionStatus status, String requesterToken, long listingId) throws Exception {
 		String response = interest(requesterToken, listingId).andExpect(status().isCreated())
 			.andReturn()

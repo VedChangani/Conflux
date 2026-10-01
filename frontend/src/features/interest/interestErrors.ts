@@ -3,15 +3,9 @@ import { ApiError } from '../../services/apiClient'
 export interface InterestError {
   title: string
   message: string
-  /** Whether sending again could succeed; otherwise the action is withdrawn. */
   retryable: boolean
 }
 
-/**
- * What to tell the user when expressing interest fails. Written here rather than taken from
- * the response, so backend wording never reaches the page. 401 is not covered: callers send
- * the visitor to log in instead.
- */
 export function interestErrorOf(error: unknown): InterestError {
   if (error instanceof ApiError) {
     switch (error.status) {

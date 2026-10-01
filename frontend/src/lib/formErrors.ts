@@ -6,7 +6,6 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-/** Backend validation messages keyed by request field name (e.g. `email`). */
 export function fieldErrorsOf(error: unknown): FieldErrors {
   const result: FieldErrors = {}
   if (error instanceof ApiError) {
@@ -18,11 +17,6 @@ export function fieldErrorsOf(error: unknown): FieldErrors {
   return result
 }
 
-/**
- * A user-facing summary of a failed login or registration. Never includes submitted values.
- * Only the auth endpoints' own 401/409 explanations (wrong credentials; which of email or
- * username is taken) are passed through; every other failure gets the app's own wording.
- */
 export function errorMessageOf(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.fieldErrors.length > 0) {

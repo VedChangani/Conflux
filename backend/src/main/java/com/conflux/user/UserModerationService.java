@@ -12,15 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Reactive account moderation by administrators. Suspending changes only the account
- * status: listings, saves, connections, conversations and messages are kept untouched, and
- * public visibility follows from the status (so restoring brings everything back).
- * Repeating an operation is a no-op. Each actual status change is recorded in the
- * moderation audit log in the same transaction; no-ops and failures are not. Only actual
- * changes count toward the acting admin's ADMIN_MODERATION rate limit (429), checked after
- * every 403/404/409 check.
- */
 @Service
 public class UserModerationService {
 
@@ -43,10 +34,6 @@ public class UserModerationService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * ACTIVE to SUSPENDED, recorded as SUSPEND_USER; already SUSPENDED is left as is.
-	 * @throws ResponseStatusException 404 if the user does not exist, 409 for the acting admin
-	 */
 	@Transactional
 	public void suspend(Long userId) {
 		User admin = this.userService.currentActiveAdmin();
@@ -61,10 +48,6 @@ public class UserModerationService {
 		}
 	}
 
-	/**
-	 * SUSPENDED to ACTIVE, recorded as RESTORE_USER; already ACTIVE is left as is.
-	 * @throws ResponseStatusException 404 if the user does not exist
-	 */
 	@Transactional
 	public void restore(Long userId) {
 		User admin = this.userService.currentActiveAdmin();
@@ -76,10 +59,6 @@ public class UserModerationService {
 		}
 	}
 
-	/**
-	 * Locks the account row and re-reads it, so concurrent calls on the same account run one
-	 * after another and only the first one changes (and records) anything.
-	 */
 	private User lockedUser(Long userId) {
 		User user = user(userId);
 		this.entityManager.refresh(user, LockModeType.PESSIMISTIC_WRITE);

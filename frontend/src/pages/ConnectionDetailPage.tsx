@@ -13,13 +13,8 @@ import { parseId } from '../lib/ids'
 import { useAsync } from '../lib/useAsync'
 import { ApiError } from '../services/apiClient'
 
-/** Not found, or not the user's: the backend answers both with 404, and so does this page. */
 class InvalidId extends Error {}
 
-/**
- * Where "back" goes: the list the user came from (`state.from`, a `/connections/…` path),
- * or the list this request belongs in for them.
- */
 function backTarget(state: unknown, connection: Connection | undefined, accountId: number | null) {
   const from = (state as { from?: unknown } | null)?.from
   if (typeof from === 'string' && from.startsWith(`${paths.connections}/`)) {
@@ -31,7 +26,6 @@ function backTarget(state: unknown, connection: Connection | undefined, accountI
   return paths.connectionsReceived
 }
 
-/** `/connections/:id`. Rendered behind {@link ProtectedRoute}. */
 export function ConnectionDetailPage() {
   const { id: rawId } = useParams()
   const id = parseId(rawId)
@@ -43,7 +37,6 @@ export function ConnectionDetailPage() {
     [id],
   )
   const result = useAsync(load)
-  // The connection as an action on this page left it.
   const [updated, setUpdated] = useState<Connection | null>(null)
   const connection = updated !== null && updated.id === id ? updated : result.data
   const back = backTarget(location.state, connection, account?.id ?? null)

@@ -1,9 +1,5 @@
 package com.conflux.listing;
 
-/**
- * Test fixture: brings a new (DRAFT) listing into a given status using only the real
- * lifecycle methods, since the entity has no status setter.
- */
 final class ListingTestStates {
 
 	private ListingTestStates() {

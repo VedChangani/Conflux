@@ -30,9 +30,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Forces slug collisions over HTTP by making the slug generator deterministic.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

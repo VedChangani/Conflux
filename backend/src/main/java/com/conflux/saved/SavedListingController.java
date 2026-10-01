@@ -14,10 +14,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Saved listings of the authenticated user. All endpoints require a bearer token and
- * always act on the token's user; there is no way to address another user's saves.
- */
 @RestController
 public class SavedListingController {
 

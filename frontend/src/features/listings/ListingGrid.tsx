@@ -25,7 +25,6 @@ export function ListingGrid({ listings, linkState, headingLevel, knownSaved, onS
   )
 }
 
-/** Card-shaped placeholders for a first load. The surrounding status text announces it. */
 export function ListingGridSkeleton({ count = 6 }: { count?: number }) {
   return (
     <div className="listing-grid" aria-hidden="true">

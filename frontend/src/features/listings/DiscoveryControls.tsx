@@ -11,7 +11,6 @@ interface DiscoveryControlsProps {
   onChange: (changes: Changes) => void
 }
 
-/** Search box plus the enum filters. Every change goes straight to the URL. */
 export function DiscoveryControls({ query, onChange }: DiscoveryControlsProps) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const panelId = useId()
@@ -19,7 +18,6 @@ export function DiscoveryControls({ query, onChange }: DiscoveryControlsProps) {
 
   return (
     <div className="discovery-controls">
-      {/* Keyed by the URL value so back/forward navigation resets the draft text. */}
       <SearchForm key={query.search} search={query.search} onSearch={(search) => onChange({ search })} />
 
       <button

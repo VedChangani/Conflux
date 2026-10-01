@@ -16,10 +16,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/**
- * A plain-text message in a {@link Conversation}. Messages are immutable. The receiver and
- * the listing are not stored: they follow from the conversation's connection.
- */
 @Entity
 @Table(name = "messages")
 public class Message {
@@ -44,16 +40,9 @@ public class Message {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected Message() {
 	}
 
-	/**
-	 * @param content already normalized (trimmed) text; not blank, at most
-	 * {@value #CONTENT_MAX_LENGTH} characters
-	 */
 	public Message(Conversation conversation, User sender, String content) {
 		this.conversation = Objects.requireNonNull(conversation, "conversation must not be null");
 		this.sender = Objects.requireNonNull(sender, "sender must not be null");

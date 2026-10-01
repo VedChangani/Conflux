@@ -12,9 +12,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-/**
- * Domain rules of {@link Listing}, without a database.
- */
 class ListingTest {
 
 	private final User owner = new User("owner@example.com", "hash", "owner", "Owner");
@@ -100,7 +97,6 @@ class ListingTest {
 		Listing listing = listing("slug");
 		listing.setTitle("t".repeat(120));
 		listing.setShortPitch("p".repeat(240));
-		// Counted in characters (code points), like MySQL VARCHAR, not UTF-16 units.
 		listing.setTitle("🚀".repeat(120));
 
 		assertThatIllegalArgumentException().isThrownBy(() -> listing.setTitle("t".repeat(121)));
@@ -193,8 +189,6 @@ class ListingTest {
 			.isThrownBy(() -> listing.setAskingPrice(new BigDecimal("10000000000000"), "USD"));
 		assertThat(listing.getAskingPrice()).isEqualByComparingTo("9999999999999.99");
 	}
-
-	// ---- Owner lifecycle ------------------------------------------------------------
 
 	@Test
 	void statusesAreExactlyTheSelfPublishingLifecycle() {

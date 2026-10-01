@@ -18,12 +18,10 @@ export function isReportReason(value: unknown): value is ReportReason {
   return typeof value === 'string' && (REPORT_REASONS as readonly string[]).includes(value)
 }
 
-/** A positive whole number the backend can address (`@Positive Long`). */
 export function isValidTargetId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
 
-/** Whether a target can be reported at all; otherwise no report action is offered. */
 export function isReportableTarget(target: ReportTarget): boolean {
   return isReportTargetType(target.type) && isValidTargetId(target.id)
 }
@@ -45,7 +43,6 @@ export function detailsError(details: string): string | undefined {
     : undefined
 }
 
-/** The same rules as the backend, so a malformed request is never sent. */
 export function validateReport(draft: ReportDraft): ReportFieldErrors {
   const errors: ReportFieldErrors = {}
   if (!isReportReason(draft.reason)) {
@@ -58,11 +55,6 @@ export function validateReport(draft: ReportDraft): ReportFieldErrors {
   return errors
 }
 
-/**
- * The complete `POST /reports` body, built field by field so nothing else (reporter, status,
- * reviewer, review dates or notes) can ever be sent. Details are trimmed; blank is `null`.
- * Call only with a reportable target and a valid draft.
- */
 export function toReportRequest(target: ReportTarget, reason: ReportReason, details: string): ReportRequest {
   return {
     targetType: target.type,
@@ -72,7 +64,6 @@ export function toReportRequest(target: ReportTarget, reason: ReportReason, deta
   }
 }
 
-/** Field errors from a backend 400, in the dialog's own words. */
 export function serverReportErrors(error: unknown, draft: ReportDraft): ReportFieldErrors {
   const errors: ReportFieldErrors = {}
   if (error instanceof ApiError) {

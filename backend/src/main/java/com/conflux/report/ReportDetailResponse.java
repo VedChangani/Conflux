@@ -8,11 +8,6 @@ import com.conflux.message.Message;
 import com.conflux.user.User;
 import com.conflux.user.UserStatus;
 
-/**
- * The admin view of a report: all report fields, reporter and reviewer summaries, and the
- * current state of the target (its shape depends on {@code targetType}; {@code null} if the
- * target no longer exists). Never contains an email or credentials.
- */
 public record ReportDetailResponse(Long id, ReportTargetType targetType, Long targetId, ReportReason reason,
 		String details, ReportStatus status, Instant createdAt, Instant reviewedAt, String resolutionNote,
 		Person reporter, Person reviewer, Target target) {
@@ -25,9 +20,6 @@ public record ReportDetailResponse(Long id, ReportTargetType targetType, Long ta
 
 	}
 
-	/**
-	 * The reported user, listing or message as the admin needs to see it.
-	 */
 	public sealed interface Target permits UserTarget, ListingTarget, MessageTarget {
 
 	}
@@ -69,9 +61,6 @@ public record ReportDetailResponse(Long id, ReportTargetType targetType, Long ta
 
 	}
 
-	/**
-	 * Must be called while reporter, reviewer and the target's associations are loaded.
-	 */
 	static ReportDetailResponse from(Report report, Target target) {
 		return new ReportDetailResponse(report.getId(), report.getTargetType(), report.getTargetId(),
 				report.getReason(), report.getDetails(), report.getStatus(), report.getCreatedAt(),

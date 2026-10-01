@@ -19,7 +19,6 @@ function signedIn(handlers: Parameters<typeof mockApi>[0], account = ACCOUNT) {
   return mockApi({ 'GET /auth/me': () => json(account), [PROFILE]: () => json(ownProfile()), ...handlers })
 }
 
-/** Opens /profile and switches to the edit form. */
 async function editProfile(handlers: Parameters<typeof mockApi>[0] = {}, account = ACCOUNT) {
   const api = signedIn(handlers, account)
   const router = renderApp('/profile')
@@ -67,7 +66,6 @@ describe('Own profile', () => {
     expect(screen.getByText('You haven’t written a bio yet.')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'View public profile' }).getAttribute('href')).toBe('/users/ada')
     expect(requests.find((request) => request.path === '/profile')?.headers.get('Authorization')).toBe('Bearer stored-token')
-    // Account details from the session are not part of the profile page.
     expect(document.querySelector('.profile')?.textContent).not.toContain(ACCOUNT.email)
   })
 
@@ -107,7 +105,6 @@ describe('Editing the profile', () => {
     expect(field('Bio').tagName).toBe('TEXTAREA')
     expect(screen.getByRole('group', { name: 'About you' })).toBeTruthy()
     expect(screen.getByRole('group', { name: 'Links' })).toBeTruthy()
-    // The username is shown for context but is not a form field.
     expect(screen.queryByLabelText(/username/i)).toBeNull()
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'Edit profile' }))
   })
@@ -159,7 +156,6 @@ describe('Editing the profile', () => {
     type('GitHub', ' https://github.com/ada ')
     fireEvent.click(saveButton())
 
-    // While saving: disabled, values kept, nothing shown as saved yet.
     const saving = screen.getByRole('button', { name: 'Saving…' })
     expect(saving).toHaveProperty('disabled', true)
     expect(saving.getAttribute('aria-busy')).toBe('true')
@@ -199,7 +195,6 @@ describe('Editing the profile', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Ada King' })).toBeTruthy()
     expect(screen.getByText('Maths, engines and marketplaces.')).toBeTruthy()
     expect(screen.queryByText('London')).toBeNull()
-    // Saved in place: the profile is not loaded again.
     expect(requests.filter((request) => request.path === '/profile' && request.method === 'GET')).toHaveLength(1)
   })
 

@@ -17,7 +17,6 @@ import {
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/** What went wrong with a save, in the form's own words. 401 ends the session instead. */
 function saveErrorMessage(error: unknown, hasFieldErrors: boolean): string {
   if (error instanceof ApiError) {
     switch (error.status) {
@@ -45,29 +44,21 @@ function remaining(field: ProfileField, value: string): string {
 
 interface ProfileFormProps {
   profile: UserProfile
-  /** Called with the profile as the backend stored it. */
   onSaved: (profile: UserProfile) => void
   onCancel: () => void
 }
 
-/**
- * Edits the six editable fields and saves them all at once (`PUT /profile` replaces the
- * whole editable profile). The values stay as typed if saving fails; the shown profile only
- * changes once the backend has accepted them.
- */
 export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
   const [values, setValues] = useState<ProfileFormValues>(() => formValuesOf(profile))
   const [errors, setErrors] = useState<ProfileFieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  // A ref as well as state: a second submit can arrive before the disabled button renders.
   const savingRef = useRef(false)
   const [focusRequest, setFocusRequest] = useState(0)
   const formRef = useRef<HTMLFormElement>(null)
   const headingId = useId()
   const formErrorId = useId()
 
-  // After a failed attempt, move focus to the first invalid field, or to the summary.
   useEffect(() => {
     if (focusRequest === 0) {
       return
@@ -79,7 +70,6 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
 
   function update(field: ProfileField, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
-    // Re-check a field that was flagged, so its message goes away once fixed.
     setErrors((current) =>
       current[field] ? { ...current, [field]: validateField(field, value) ?? undefined } : current,
     )

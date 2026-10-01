@@ -23,9 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/**
- * Slug collision paths that cannot be triggered deterministically over HTTP.
- */
 class ListingServiceTest {
 
 	private final ListingRepository listingRepository = mock(ListingRepository.class);

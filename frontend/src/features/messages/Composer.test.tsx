@@ -50,7 +50,6 @@ describe('Sending a message', () => {
     type('  See you Thursday at 10.  ')
     fireEvent.click(sendButton())
 
-    // While sending: controls disabled, the draft kept, nothing inserted yet.
     const sending = screen.getByRole('button', { name: 'Sending…' })
     expect(sending).toHaveProperty('disabled', true)
     expect(sending.getAttribute('aria-busy')).toBe('true')
@@ -84,7 +83,6 @@ describe('Sending a message', () => {
     expect(requests.filter((request) => request.path === MESSAGES.slice(4))).toHaveLength(1)
     await waitFor(() => expect(requests.filter((request) => request.path === LIST.slice(4))).toHaveLength(2))
     await waitFor(() => expect(requests.filter((request) => request.path === DETAIL.slice(4))).toHaveLength(2))
-    // Still the same page: no navigation happened.
     expect(screen.getByRole('heading', { level: 2, name: 'Bob Brown' })).toBeTruthy()
   })
 
@@ -181,7 +179,6 @@ describe('Send failures', () => {
     expect(screen.queryByRole('textbox', { name: 'Message to Bob Brown' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
     expect(document.body.textContent).not.toContain(LEAKY_DETAIL)
-    // The messages already there stay readable.
     expect(contents()).toEqual(['Happy to talk on Thursday.'])
   })
 

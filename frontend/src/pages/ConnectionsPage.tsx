@@ -2,10 +2,6 @@ import { NavLink, Outlet } from 'react-router'
 import { paths } from '../app/paths'
 import { usePendingRequests } from '../features/connections/usePendingRequests'
 
-/**
- * `/connections`: received and sent requests as two tabs, each its own route. Rendered
- * behind {@link ProtectedRoute}.
- */
 export function ConnectionsPage() {
   const { count } = usePendingRequests()
 

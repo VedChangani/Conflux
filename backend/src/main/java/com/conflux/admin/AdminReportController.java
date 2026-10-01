@@ -19,9 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The report review queue for administrators ({@code ROLE_ADMIN}, see SecurityConfig).
- */
 @RestController
 @RequestMapping(AdminReportController.BASE_PATH)
 public class AdminReportController {
@@ -34,9 +31,6 @@ public class AdminReportController {
 		this.reportService = reportService;
 	}
 
-	/**
-	 * @param status reports to show; OPEN when omitted
-	 */
 	@GetMapping
 	public PageResponse<ReportSummaryResponse> queue(@RequestParam(required = false) ReportStatus status,
 			@RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,

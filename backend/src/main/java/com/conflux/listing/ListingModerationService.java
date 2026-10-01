@@ -14,14 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Reactive listing moderation by administrators: suspending a PUBLISHED listing hides it,
- * restoring makes it public again. There is no approval step; owners publish directly.
- * Repeating an operation is a no-op. The listing is never deleted. Each actual status
- * change is recorded in the moderation audit log in the same transaction; no-ops and
- * failures are not. Only actual changes count toward the acting admin's ADMIN_MODERATION
- * rate limit (429), checked after every 403/404/409 check; a 429 rolls the transition back.
- */
 @Service
 public class ListingModerationService {
 
@@ -44,10 +36,6 @@ public class ListingModerationService {
 		this.rateLimiter = rateLimiter;
 	}
 
-	/**
-	 * PUBLISHED to SUSPENDED, recorded as SUSPEND_LISTING; already SUSPENDED is left as is.
-	 * @throws ResponseStatusException 404 if the listing does not exist, 409 if DRAFT or ARCHIVED
-	 */
 	@Transactional
 	public void suspend(Long listingId) {
 		User admin = this.userService.currentActiveAdmin();
@@ -59,10 +47,6 @@ public class ListingModerationService {
 		}
 	}
 
-	/**
-	 * SUSPENDED back to PUBLISHED, recorded as RESTORE_LISTING; already PUBLISHED is left as is.
-	 * @throws ResponseStatusException 404 if the listing does not exist, 409 if DRAFT or ARCHIVED
-	 */
 	@Transactional
 	public void restore(Long listingId) {
 		User admin = this.userService.currentActiveAdmin();
@@ -74,10 +58,6 @@ public class ListingModerationService {
 		}
 	}
 
-	/**
-	 * Locks the listing row and re-reads it, so concurrent calls on the same listing run one
-	 * after another and only the first one changes (and records) anything.
-	 */
 	private Listing lockedListing(Long listingId) {
 		Listing listing = listing(listingId);
 		this.entityManager.refresh(listing, LockModeType.PESSIMISTIC_WRITE);

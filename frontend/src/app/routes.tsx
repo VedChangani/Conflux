@@ -22,10 +22,6 @@ import { SavedListingsPage } from '../pages/SavedListingsPage'
 import { paths } from './paths'
 import { RouteError } from './RouteError'
 
-/**
- * Application route tree. Pages that require a confirmed account go under a
- * `{ element: <ProtectedRoute />, children: [...] }` entry inside the shell.
- */
 export const routes: RouteObject[] = [
   {
     element: <AppShell />,
@@ -47,7 +43,6 @@ export const routes: RouteObject[] = [
             element: <ConnectionsPage />,
             children: [
               { index: true, element: <Navigate to={paths.connectionsReceived} replace /> },
-              // Keyed so switching tabs starts a fresh list rather than reusing the other one's state.
               { path: paths.connectionsReceived, element: <ConnectionList key="received" box="received" /> },
               { path: paths.connectionsSent, element: <ConnectionList key="sent" box="sent" /> },
             ],
@@ -63,7 +58,6 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            // Active administrators only; everyone else signed in gets a 403 page.
             element: <AdminRoute />,
             children: [
               { path: paths.admin, element: <Navigate to={paths.adminReports} replace /> },

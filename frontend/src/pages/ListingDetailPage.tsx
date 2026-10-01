@@ -13,11 +13,6 @@ import { SaveButton } from '../features/saved/SaveButton'
 import { useAsync } from '../lib/useAsync'
 import { ApiError } from '../services/apiClient'
 
-/**
- * Where "back" goes: the marketplace results the visitor came from (their query string
- * is passed as `state.from` by the listing cards), the saved listings page (`state.savedFrom`,
- * its query string), or the unfiltered marketplace.
- */
 function backTarget(state: unknown): { href: string; label: string } {
   const { from, savedFrom } = (state ?? {}) as { from?: unknown; savedFrom?: unknown }
   if (typeof from === 'string' && from.startsWith('?') && from.length > 1) {
@@ -48,7 +43,6 @@ export function ListingDetailPage() {
 
       {result.status === 'success' ? (
         <ListingDetailView
-          // Keyed so a previous listing's interest outcome never carries over to another one.
           key={result.data.id}
           listing={result.data}
           actions={

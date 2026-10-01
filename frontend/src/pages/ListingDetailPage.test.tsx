@@ -40,7 +40,6 @@ describe('Listing detail page', () => {
     expect(summary.getByText('Alice Anders')).toBeTruthy()
     expect(summary.getByText('@alice')).toBeTruthy()
 
-    // Internal status and ids are not part of the public page.
     const text = document.body.textContent ?? ''
     expect(text).not.toContain('PUBLISHED')
     expect(document.title).toBe('Ledgerly · Conflux')
@@ -75,7 +74,6 @@ describe('Listing detail page', () => {
     const { requests } = mockApi({ 'GET /auth/me': () => json(ACCOUNT), [DETAIL]: () => response.promise })
     renderApp('/listings/ledgerly')
 
-    // After the session check, the listing's own loading status.
     expect((await screen.findByText('Loading listing…')).getAttribute('role')).toBe('status')
     response.resolve(json(listingDetail()))
 

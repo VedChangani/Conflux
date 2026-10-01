@@ -20,32 +20,19 @@ interface DialogProps {
   title: string
   onClose: () => void
   children: ReactNode
-  /** When false (e.g. while a request runs), Escape, the backdrop and × do not close it. */
   dismissible?: boolean
-  /**
-   * Where focus goes when the dialog closes: the control that opened it. Needed because
-   * some browsers (Safari) do not focus a button when it is clicked. Pass a `useRef` object.
-   */
   returnFocusRef?: RefObject<HTMLElement | null>
 }
 
-/**
- * A modal dialog: rendered over the page, with the rest of the page inert while it is open.
- * Focus moves into it (to its first control), stays inside it, and returns to the control
- * that opened it (`returnFocusRef`, else whatever was focused before) when it closes. Escape and the backdrop close
- * it while `dismissible`.
- */
 export function Dialog({ title, onClose, children, dismissible = true, returnFocusRef }: DialogProps) {
   const titleId = useId()
   const backdropRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // The opener exists before the dialog and outlives it, so it is captured now.
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const returnTarget = returnFocusRef?.current ?? previous
     const backdrop = backdropRef.current
-    // Make everything else inert, so neither pointer, keyboard nor screen reader reaches it.
     const madeInert = Array.from(document.body.children).filter(
       (element): element is HTMLElement =>
         element !== backdrop && element instanceof HTMLElement && !element.hasAttribute('inert'),
@@ -56,7 +43,6 @@ export function Dialog({ title, onClose, children, dismissible = true, returnFoc
 
     const panel = panelRef.current
     if (panel) {
-      // The first real control (the × button is a fallback way out, not a starting point).
       const first = focusableIn(panel).find((element) => !element.classList.contains('dialog-close'))
       const start = first ?? panel
       start.focus()
@@ -67,8 +53,6 @@ export function Dialog({ title, onClose, children, dismissible = true, returnFoc
       document.body.style.overflow = overflow
       returnTarget?.focus()
     }
-    // Runs once per opening: the dialog is mounted exactly while it is open, and
-    // `returnFocusRef` is a stable ref object.
   }, [returnFocusRef])
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {

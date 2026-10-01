@@ -11,10 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Reactive moderation of accounts and listings by administrators ({@code ROLE_ADMIN}, see
- * SecurityConfig). Every operation is idempotent and answers 204.
- */
 @RestController
 @RequestMapping(ApiPaths.ADMIN)
 public class AdminModerationController {

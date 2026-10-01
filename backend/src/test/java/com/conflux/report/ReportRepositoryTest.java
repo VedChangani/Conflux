@@ -23,9 +23,6 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-/**
- * V8 schema and {@link ReportRepository} against the Flyway-migrated H2 database.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
@@ -93,7 +90,6 @@ class ReportRepositoryTest {
 			.containsEntry("fk_reports_reviewed_by", "RESTRICT");
 		assertThat(indexColumns("idx_reports_status_created_id")).containsExactly("status", "created_at", "id");
 		assertThat(indexColumns("idx_reports_target")).containsExactly("target_type", "target_id");
-		// No polymorphic foreign key to the target.
 		assertThat(nativeList("SELECT constraint_name FROM information_schema.referential_constraints "
 				+ "WHERE constraint_schema = SCHEMA() AND constraint_name LIKE 'fk_reports_%'"))
 			.hasSize(2);
@@ -102,7 +98,6 @@ class ReportRepositoryTest {
 	@Test
 	void aReporterReportsATargetOnlyOnce() {
 		this.reportRepository.saveAndFlush(new Report(this.reporter, ReportTargetType.LISTING, 7L, ReportReason.SPAM, null));
-		// Other targets, types and reporters are fine.
 		this.reportRepository.saveAndFlush(new Report(this.reporter, ReportTargetType.LISTING, 8L, ReportReason.SPAM, null));
 		this.reportRepository.saveAndFlush(new Report(this.reporter, ReportTargetType.USER, 7L, ReportReason.SPAM, null));
 		this.reportRepository.saveAndFlush(new Report(this.admin, ReportTargetType.LISTING, 7L, ReportReason.SPAM, null));
@@ -114,7 +109,6 @@ class ReportRepositoryTest {
 				ReportTargetType.MESSAGE, 7L))
 			.isFalse();
 
-		// Last: after a failed insert the session cannot be used any further.
 		assertThatExceptionOfType(DataIntegrityViolationException.class).isThrownBy(() -> this.reportRepository
 			.saveAndFlush(new Report(this.reporter, ReportTargetType.LISTING, 7L, ReportReason.OTHER, "again")));
 	}

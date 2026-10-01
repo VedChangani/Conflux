@@ -27,7 +27,6 @@ function signedIn(handlers: Parameters<typeof mockApi>[0]) {
   return mockApi({ 'GET /auth/me': () => json(ACCOUNT), ...handlers })
 }
 
-/** A received list with one pending request from Bob. */
 async function renderReceived(handlers: Parameters<typeof mockApi>[0]) {
   const api = signedIn({ [RECEIVED]: () => json(pageOf([receivedConnection()])), ...handlers })
   const router = renderApp('/connections/received')
@@ -63,10 +62,8 @@ describe('Accepting a request', () => {
     expect(row().getByText('Mar 9, 2026').getAttribute('datetime')).toBe(LATER)
 
     expect(count(requests, ACCEPT)).toBe(1)
-    // Updated from the response: the list itself is not loaded again.
     expect(count(requests, RECEIVED)).toBe(1)
     expect(requests.find((request) => request.path === '/connections/21/accept')?.body).toBeUndefined()
-    // The navigation count is read again after answering.
     await waitFor(() => expect(count(requests, PENDING_COUNT)).toBe(2))
   })
 

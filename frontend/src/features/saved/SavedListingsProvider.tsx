@@ -3,19 +3,14 @@ import { useAuth } from '../auth/useAuth'
 import { savedApi } from './savedApi'
 import { SavedListingsContext, type SavedListingsContextValue } from './savedContext'
 
-/** The backend's largest page size, so the lookup takes as few requests as possible. */
 const LOOKUP_PAGE_SIZE = 50
-/** Stop looking after this many pages; beyond that, unlisted listings stay "unknown". */
 const LOOKUP_MAX_PAGES = 20
 
 interface SessionState {
   accountId: number
   lookup: 'idle' | 'loading' | 'done' | 'failed'
-  /** Saved listing ids found by the lookup. */
   found: ReadonlySet<number>
-  /** Whether `found` holds every saved listing (false if the lookup stopped early). */
   complete: boolean
-  /** Confirmed results of this session's saves and unsaves; they take precedence over `found`. */
   changes: ReadonlyMap<number, boolean>
 }
 
@@ -35,19 +30,12 @@ async function lookUpSavedIds(signal: AbortSignal): Promise<{ ids: Set<number>; 
   return { ids, complete: false }
 }
 
-/**
- * Which listings the signed-in user has saved, shared by every save control so they agree
- * with each other. Listing responses carry no "saved" flag, so this is looked up from
- * `GET /saved-listings` the first time a control needs it. Everything is forgotten when
- * the account changes or the session ends.
- */
 export function SavedListingsProvider({ children }: { children: ReactNode }) {
   const { status, account } = useAuth()
   const accountId = status === 'authenticated' && account ? account.id : null
   const [state, setState] = useState<SessionState | null>(null)
   const inFlight = useRef(new Map<string, { saved: boolean; request: Promise<void> }>())
 
-  // Signed out (logout or an expired token): drop the previous session's knowledge.
   if (accountId === null && state !== null) {
     setState(null)
   }
@@ -126,7 +114,6 @@ export function SavedListingsProvider({ children }: { children: ReactNode }) {
         }
         return session.lookup === 'done' && session.complete ? false : undefined
       },
-      // Until the lookup has settled (including before it starts), nothing is known yet.
       checking: accountId !== null && (session === null || session.lookup === 'idle' || session.lookup === 'loading'),
       ensureLoaded,
       setSaved,

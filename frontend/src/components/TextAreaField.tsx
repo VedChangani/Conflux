@@ -7,7 +7,6 @@ interface TextAreaFieldProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaEle
   error?: string
 }
 
-/** Labelled textarea with optional hint and error text, wired up like {@link TextField}. */
 export function TextAreaField({ label, hint, error, className, ...textareaProps }: TextAreaFieldProps) {
   const id = useId()
   const hintId = hint ? `${id}-hint` : undefined

@@ -13,15 +13,6 @@ interface Settled<T> {
   error?: unknown
 }
 
-/**
- * Runs `load` (typically an API call) and tracks its outcome. It reruns whenever `load`
- * changes, so callers memoize it with `useCallback` on the values it depends on. A
- * superseded request is aborted and its result ignored, so a slow response can never
- * overwrite a newer one. While a new request runs, the last successful result stays
- * available as `previousData`.
- *
- * This only tracks request state; the request itself goes through the API client.
- */
 export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>): AsyncState<T> & { retry: () => void } {
   const [attempt, setAttempt] = useState(0)
   const [settled, setSettled] = useState<Settled<T> | null>(null)

@@ -1,10 +1,6 @@
 import { ApiError } from '../../services/apiClient'
 import { RESOLUTION_NOTE_MAX_LENGTH, type AdminAction } from './types'
 
-/**
- * How a failed admin request is treated. 401 is listed so callers can step aside: the API
- * client has already ended the session and the protected route sends the user to log in.
- */
 export type AdminErrorKind =
   | 'unauthorized'
   | 'forbidden'
@@ -37,10 +33,6 @@ export function adminErrorKind(error: unknown): AdminErrorKind {
   return 'server'
 }
 
-/**
- * Shown whenever the backend refuses an admin request with 403: the account is no longer an
- * administrator, or it is suspended. This is about the account, never about the report.
- */
 export const ADMIN_ACCESS_COPY = {
   title: 'Administrator access required',
   message: 'Your account doesn’t currently have administrator access. It may have lost its admin role or been suspended.',
@@ -50,17 +42,12 @@ export interface AdminLoadError {
   kind: AdminErrorKind
   title: string
   message: string
-  /** Loading again could work (rate limit, server or network trouble). */
   retryable: boolean
 }
 
 const NETWORK = 'Unable to reach the server. Check your connection and try again.'
 const RATE_LIMITED = 'Too many requests in a short time. Wait a moment, then try again.'
 
-/**
- * What to show when the queue or a report could not be loaded. Written here rather than taken
- * from the response, so backend wording never reaches the page.
- */
 export function adminLoadError(error: unknown, subject: 'queue' | 'report'): AdminLoadError {
   const kind = adminErrorKind(error)
   const title = subject === 'queue' ? 'We couldn’t load the report queue' : 'We couldn’t load this report'
@@ -85,9 +72,7 @@ export function adminLoadError(error: unknown, subject: 'queue' | 'report'): Adm
 export interface AdminActionError {
   kind: AdminErrorKind
   message: string
-  /** The same action could still succeed (rate limit, server or network trouble). */
   retryable: boolean
-  /** The report or its target changed elsewhere: read it again to show the real state. */
   refresh: boolean
 }
 
@@ -115,10 +100,6 @@ function conflictMessage(action: AdminAction): string {
   }
 }
 
-/**
- * What to tell the administrator when a moderation action failed. Written here rather than
- * taken from the response, so backend wording never reaches the page.
- */
 export function adminActionError(error: unknown, action: AdminAction): AdminActionError {
   const kind = adminErrorKind(error)
   const subject = SUBJECT[action]
@@ -165,7 +146,6 @@ export function adminActionError(error: unknown, action: AdminAction): AdminActi
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-/** The backend's limit on the note, checked after trimming as the backend does. */
 export function noteLengthError(note: string): string | undefined {
   const over = note.trim().length - RESOLUTION_NOTE_MAX_LENGTH
   return over > 0
@@ -173,7 +153,6 @@ export function noteLengthError(note: string): string | undefined {
     : undefined
 }
 
-/** The field-level message for a backend 400 about the note, in the panel's own words. */
 export function serverNoteError(error: unknown, note: string): string | undefined {
   if (error instanceof ApiError && error.fieldErrors.some(({ field }) => field === 'resolutionNote')) {
     return noteLengthError(note) ?? 'This note wasn’t accepted. Shorten or rephrase it.'
