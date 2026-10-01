@@ -16,7 +16,10 @@ export const CATEGORIES = [
 export const STAGES = ['CONCEPT', 'PROTOTYPE', 'MVP', 'LIVE', 'REVENUE'] as const
 export const SORTS = ['NEWEST', 'OLDEST', 'UPDATED', 'PRICE_LOW', 'PRICE_HIGH'] as const
 
+export const LISTING_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED', 'SUSPENDED'] as const
+
 export type ListingAssetType = (typeof ASSET_TYPES)[number]
+export type ListingStatus = (typeof LISTING_STATUSES)[number]
 export type ListingMarketplaceMode = (typeof MARKETPLACE_MODES)[number]
 export type ListingCategory = (typeof CATEGORIES)[number]
 export type ListingStage = (typeof STAGES)[number]
@@ -56,4 +59,38 @@ export interface ListingDetail extends ListingCard {
   collaborationDetails: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface MyListingSummary {
+  id: number
+  slug: string
+  title: string
+  shortPitch: string
+  assetType: ListingAssetType
+  marketplaceMode: ListingMarketplaceMode
+  category: ListingCategory
+  stage: ListingStage
+  status: ListingStatus
+  askingPrice: number | null
+  currency: string | null
+  priceNegotiable: boolean
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ListingRequest {
+  title: string
+  shortPitch: string
+  description: string
+  problem: string | null
+  solution: string | null
+  assetType: ListingAssetType
+  marketplaceMode: ListingMarketplaceMode
+  category: ListingCategory
+  stage: ListingStage
+  askingPrice: number | null
+  currency: string | null
+  priceNegotiable: boolean
+  collaborationDetails: string | null
 }

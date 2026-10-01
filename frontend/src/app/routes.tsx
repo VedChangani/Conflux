@@ -13,7 +13,11 @@ import { HomePage } from '../pages/HomePage'
 import { ListingDetailPage } from '../pages/ListingDetailPage'
 import { LoginPage } from '../pages/LoginPage'
 import { MarketplacePage } from '../pages/MarketplacePage'
+import { EditListingPage } from '../pages/EditListingPage'
 import { MessagesIndex, MessagesPage } from '../pages/MessagesPage'
+import { MyListingPage } from '../pages/MyListingPage'
+import { MyListingsPage } from '../pages/MyListingsPage'
+import { NewListingPage } from '../pages/NewListingPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { PublicProfilePage } from '../pages/PublicProfilePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -37,6 +41,10 @@ export const routes: RouteObject[] = [
         element: <ProtectedRoute />,
         children: [
           { path: paths.saved, element: <SavedListingsPage /> },
+          { path: paths.myListings, element: <MyListingsPage /> },
+          { path: paths.newListing, element: <NewListingPage /> },
+          { path: `${paths.myListings}/:id`, element: <MyListingPage /> },
+          { path: `${paths.myListings}/:id/edit`, element: <EditListingPage /> },
           { path: paths.profile, element: <ProfilePage /> },
           {
             path: paths.connections,

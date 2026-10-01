@@ -10,11 +10,16 @@ interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>,
   value: string
   options: readonly SelectOption[]
   onChange: (value: string) => void
+  hint?: string
+  error?: string
 }
 
-export function SelectField({ label, value, options, onChange, className, ...selectProps }: SelectFieldProps) {
+export function SelectField({ label, value, options, onChange, hint, error, className, ...selectProps }: SelectFieldProps) {
   const id = useId()
   const known = options.some((option) => option.value === value)
+  const hintId = hint ? `${id}-hint` : undefined
+  const errorId = error ? `${id}-error` : undefined
+  const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined
 
   return (
     <div className={className ? `field ${className}` : 'field'}>
@@ -25,6 +30,8 @@ export function SelectField({ label, value, options, onChange, className, ...sel
         id={id}
         className="field-input field-select"
         value={value}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         onChange={(event) => onChange(event.target.value)}
         {...selectProps}
       >
@@ -35,6 +42,16 @@ export function SelectField({ label, value, options, onChange, className, ...sel
         ))}
         {!known && <option value={value}>{value}</option>}
       </select>
+      {error && (
+        <p id={errorId} className="field-error">
+          {error}
+        </p>
+      )}
+      {hint && (
+        <p id={hintId} className="field-hint">
+          {hint}
+        </p>
+      )}
     </div>
   )
 }

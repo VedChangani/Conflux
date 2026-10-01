@@ -81,7 +81,15 @@ describe('Admin navigation', () => {
     const sections = within(nav())
       .getAllByRole('link')
       .map((link) => link.getAttribute('aria-label') ?? link.textContent)
-    expect(sections).toEqual(['Conflux', 'Browse', 'Saved', 'Connections', 'Messages', 'Profile (Ada Lovelace)'])
+    expect(sections).toEqual([
+      'Conflux',
+      'Browse',
+      'My listings',
+      'Saved',
+      'Connections',
+      'Messages',
+      'Profile (Ada Lovelace)',
+    ])
     expect(within(nav()).queryByRole('link', { name: /Moderation/ })).toBeNull()
   })
 
