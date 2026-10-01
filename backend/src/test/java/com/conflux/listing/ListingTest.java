@@ -1,6 +1,8 @@
 package com.conflux.listing;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import com.conflux.user.User;
 import org.junit.jupiter.api.Test;
@@ -10,9 +12,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-/**
- * Domain rules of {@link Listing}, without a database.
- */
 class ListingTest {
 
 	private final User owner = new User("owner@example.com", "hash", "owner", "Owner");
@@ -61,7 +60,6 @@ class ListingTest {
 		assertThatNullPointerException().isThrownBy(() -> listing.setMarketplaceMode(null));
 		assertThatNullPointerException().isThrownBy(() -> listing.setCategory(null));
 		assertThatNullPointerException().isThrownBy(() -> listing.setStage(null));
-		assertThatNullPointerException().isThrownBy(() -> listing.setStatus(null));
 	}
 
 	@Test
@@ -99,7 +97,6 @@ class ListingTest {
 		Listing listing = listing("slug");
 		listing.setTitle("t".repeat(120));
 		listing.setShortPitch("p".repeat(240));
-		// Counted in characters (code points), like MySQL VARCHAR, not UTF-16 units.
 		listing.setTitle("🚀".repeat(120));
 
 		assertThatIllegalArgumentException().isThrownBy(() -> listing.setTitle("t".repeat(121)));
@@ -193,69 +190,123 @@ class ListingTest {
 		assertThat(listing.getAskingPrice()).isEqualByComparingTo("9999999999999.99");
 	}
 
-	// ---- Owner lifecycle ------------------------------------------------------------
-
 	@Test
-	void editKeepsDraftAndRejectedButSendsPublishedBackToReview() {
-		Listing draft = listing("draft");
-		draft.beginOwnerEdit();
-		assertThat(draft.getStatus()).isEqualTo(ListingStatus.DRAFT);
-
-		Listing rejected = withStatus(ListingStatus.REJECTED);
-		rejected.beginOwnerEdit();
-		assertThat(rejected.getStatus()).isEqualTo(ListingStatus.REJECTED);
-
-		Listing published = withStatus(ListingStatus.PUBLISHED);
-		published.beginOwnerEdit();
-		assertThat(published.getStatus()).isEqualTo(ListingStatus.PENDING_REVIEW);
-		assertThat(published.getPublishedAt()).isNull();
+	void statusesAreExactlyTheSelfPublishingLifecycle() {
+		assertThat(ListingStatus.values()).containsExactly(ListingStatus.DRAFT, ListingStatus.PUBLISHED,
+				ListingStatus.ARCHIVED, ListingStatus.SUSPENDED);
 	}
 
 	@Test
-	void editIsRefusedWhilePendingArchivedOrSuspended() {
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.PENDING_REVIEW, ListingStatus.ARCHIVED,
+	void publishMakesDraftPublishedAndSetsPublishedAtToNow() {
+		Listing listing = listing("slug");
+		Instant before = Instant.now().truncatedTo(ChronoUnit.MICROS);
+
+		listing.publish();
+
+		assertThat(listing.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
+		assertThat(listing.getPublishedAt()).isBetween(before, Instant.now());
+	}
+
+	@Test
+	void publishIsRefusedUnlessDraftAndChangesNothing() {
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.PUBLISHED, ListingStatus.ARCHIVED,
 				ListingStatus.SUSPENDED }) {
 			Listing listing = withStatus(status);
+			Instant publishedAt = listing.getPublishedAt();
+
 			assertThatExceptionOfType(ListingStateException.class).as(status.name())
-				.isThrownBy(listing::beginOwnerEdit);
+				.isThrownBy(listing::publish)
+				.withMessage("A listing with status " + status + " cannot be published.");
+			assertThat(listing.getStatus()).isEqualTo(status);
+			assertThat(listing.getPublishedAt()).isEqualTo(publishedAt);
+		}
+	}
+
+	@Test
+	void draftAndPublishedAreEditableWithoutAnyStatusChange() {
+		Listing draft = listing("draft");
+		draft.requireEditable();
+		assertThat(draft.getStatus()).isEqualTo(ListingStatus.DRAFT);
+		assertThat(draft.getPublishedAt()).isNull();
+
+		Listing published = withStatus(ListingStatus.PUBLISHED);
+		Instant publishedAt = published.getPublishedAt();
+		published.requireEditable();
+		published.setTitle("Edited title");
+		assertThat(published.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
+		assertThat(published.getPublishedAt()).isNotNull().isEqualTo(publishedAt);
+	}
+
+	@Test
+	void editIsRefusedWhenArchivedOrSuspended() {
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.ARCHIVED, ListingStatus.SUSPENDED }) {
+			Listing listing = withStatus(status);
+			assertThatExceptionOfType(ListingStateException.class).as(status.name())
+				.isThrownBy(listing::requireEditable)
+				.withMessage("A listing with status " + status + " cannot be edited.");
 			assertThat(listing.getStatus()).isEqualTo(status);
 		}
 	}
 
 	@Test
-	void submitMovesDraftAndRejectedToPendingReviewOnly() {
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.REJECTED }) {
+	void archiveIsAllowedExceptWhenSuspendedKeepsPublishedAtAndIsIdempotent() {
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.PUBLISHED,
+				ListingStatus.ARCHIVED }) {
 			Listing listing = withStatus(status);
-			listing.submitForReview();
-			assertThat(listing.getStatus()).isEqualTo(ListingStatus.PENDING_REVIEW);
-			assertThat(listing.getPublishedAt()).isNull();
-		}
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.PENDING_REVIEW, ListingStatus.PUBLISHED,
-				ListingStatus.ARCHIVED, ListingStatus.SUSPENDED }) {
-			Listing listing = withStatus(status);
-			assertThatExceptionOfType(ListingStateException.class).as(status.name())
-				.isThrownBy(listing::submitForReview);
-			assertThat(listing.getStatus()).isEqualTo(status);
-		}
-	}
-
-	@Test
-	void archiveIsAllowedExceptWhenSuspendedAndIsIdempotent() {
-		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.REJECTED,
-				ListingStatus.PENDING_REVIEW, ListingStatus.PUBLISHED, ListingStatus.ARCHIVED }) {
-			Listing listing = withStatus(status);
+			Instant publishedAt = listing.getPublishedAt();
 			listing.archive();
 			assertThat(listing.getStatus()).as(status.name()).isEqualTo(ListingStatus.ARCHIVED);
+			assertThat(listing.getPublishedAt()).isEqualTo(publishedAt);
 		}
 		Listing suspended = withStatus(ListingStatus.SUSPENDED);
 		assertThatExceptionOfType(ListingStateException.class).isThrownBy(suspended::archive);
 		assertThat(suspended.getStatus()).isEqualTo(ListingStatus.SUSPENDED);
 	}
 
+	@Test
+	void suspensionIsOnlyPossibleForPublishedListingsAndKeepsPublishedAt() {
+		Listing published = withStatus(ListingStatus.PUBLISHED);
+		Instant publishedAt = published.getPublishedAt();
+		published.suspend();
+		assertThat(published.getStatus()).isEqualTo(ListingStatus.SUSPENDED);
+		assertThat(published.getPublishedAt()).isEqualTo(publishedAt);
+
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.ARCHIVED,
+				ListingStatus.SUSPENDED }) {
+			Listing listing = withStatus(status);
+			assertThatExceptionOfType(ListingStateException.class).as(status.name()).isThrownBy(listing::suspend);
+			assertThat(listing.getStatus()).isEqualTo(status);
+		}
+	}
+
+	@Test
+	void restoreReturnsASuspendedListingToPublishedWithItsOriginalPublishedAt() {
+		Listing listing = withStatus(ListingStatus.PUBLISHED);
+		Instant publishedAt = listing.getPublishedAt();
+		listing.suspend();
+
+		listing.restore();
+
+		assertThat(listing.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
+		assertThat(listing.getPublishedAt()).isEqualTo(publishedAt);
+		for (ListingStatus status : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.PUBLISHED,
+				ListingStatus.ARCHIVED }) {
+			Listing other = withStatus(status);
+			assertThatExceptionOfType(ListingStateException.class).as(status.name())
+				.isThrownBy(other::restore)
+				.withMessage("A listing with status " + status + " cannot be restored.");
+			assertThat(other.getStatus()).isEqualTo(status);
+		}
+	}
+
+	@Test
+	void noPublicMethodCanSetAnArbitraryStatus() {
+		assertThat(Listing.class.getMethods()).extracting(java.lang.reflect.Method::getName)
+			.doesNotContain("setStatus", "suspend", "restore");
+	}
+
 	private Listing withStatus(ListingStatus status) {
-		Listing listing = listing("slug");
-		listing.setStatus(status);
-		return listing;
+		return ListingTestStates.moveTo(listing("slug"), status);
 	}
 
 	private Listing listing(String slug) {

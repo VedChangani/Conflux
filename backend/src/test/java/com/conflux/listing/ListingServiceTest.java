@@ -2,8 +2,12 @@ package com.conflux.listing;
 
 import java.util.Optional;
 
+import com.conflux.auth.CurrentUser;
+import com.conflux.ratelimit.RateLimiter;
 import com.conflux.user.User;
 import com.conflux.user.UserRepository;
+import com.conflux.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,9 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/**
- * Slug collision paths that cannot be triggered deterministically over HTTP.
- */
 class ListingServiceTest {
 
 	private final ListingRepository listingRepository = mock(ListingRepository.class);
@@ -30,8 +31,16 @@ class ListingServiceTest {
 
 	private final SlugGenerator slugGenerator = mock(SlugGenerator.class);
 
-	private final ListingService service = new ListingService(this.listingRepository, this.userRepository,
-			this.slugGenerator);
+	private final CurrentUser currentUser = mock(CurrentUser.class);
+
+	private final ListingService service = new ListingService(this.listingRepository,
+			new UserService(this.userRepository, this.currentUser, mock(RateLimiter.class)), this.slugGenerator,
+			this.currentUser, mock(RateLimiter.class));
+
+	@BeforeEach
+	void authenticateUser1() {
+		given(this.currentUser.id()).willReturn(1L);
+	}
 
 	@Test
 	void uniqueConstraintViolationAfterPassedExistenceCheckBecomes409() {
@@ -42,7 +51,7 @@ class ListingServiceTest {
 		given(this.listingRepository.saveAndFlush(any(Listing.class)))
 			.willThrow(new DataIntegrityViolationException("Unique index violation: uk_listings_slug ... SQL ..."));
 
-		assertThatExceptionOfType(ResponseStatusException.class).isThrownBy(() -> this.service.create(1L, request()))
+		assertThatExceptionOfType(ResponseStatusException.class).isThrownBy(() -> this.service.create(request()))
 			.satisfies(ex -> {
 				assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 				assertThat(ex.getReason()).doesNotContain("uk_listings_slug").doesNotContain("SQL");
@@ -56,9 +65,18 @@ class ListingServiceTest {
 		given(this.slugGenerator.generate(anyString())).willReturn("title-0000abcd");
 		given(this.listingRepository.existsBySlug("title-0000abcd")).willReturn(true);
 
-		assertThatExceptionOfType(ResponseStatusException.class).isThrownBy(() -> this.service.create(1L, request()))
+		assertThatExceptionOfType(ResponseStatusException.class).isThrownBy(() -> this.service.create(request()))
 			.satisfies(ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
 		verify(this.slugGenerator, times(ListingService.MAX_SLUG_ATTEMPTS)).generate(anyString());
+	}
+
+	@Test
+	void searchPatternIsTrimmedLowerCasedEscapedAndNullWhenBlank() {
+		assertThat(ListingService.searchPattern(null)).isNull();
+		assertThat(ListingService.searchPattern("")).isNull();
+		assertThat(ListingService.searchPattern(" \t ")).isNull();
+		assertThat(ListingService.searchPattern("  Invoice AI ")).isEqualTo("%invoice ai%");
+		assertThat(ListingService.searchPattern("100%_off!")).isEqualTo("%100!%!_off!!%");
 	}
 
 	private static ListingRequest request() {

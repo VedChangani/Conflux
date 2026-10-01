@@ -4,9 +4,6 @@ import com.conflux.user.User;
 import com.conflux.user.UserRole;
 import com.conflux.user.UserStatus;
 
-/**
- * Safe view of the authenticated user's own account. Never contains credentials.
- */
 public record AccountResponse(Long id, String email, String username, String displayName, UserRole role,
 		UserStatus status) {
 

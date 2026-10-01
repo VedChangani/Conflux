@@ -53,10 +53,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * End-to-end authentication tests: full application context, the real security filter
- * chain, and the Flyway-migrated H2 test database.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -99,8 +95,6 @@ class AuthIntegrationTest {
 	void cleanDatabase() {
 		this.userRepository.deleteAll();
 	}
-
-	// ---- Registration -----------------------------------------------------------------
 
 	@Test
 	void validRegistrationCreatesActiveUserAndReturnsSafeAccount() throws Exception {
@@ -178,11 +172,8 @@ class AuthIntegrationTest {
 
 	@Test
 	void passwordLongerThanBcryptLimitIsRejectedWith400() throws Exception {
-		// 40 characters but 80 UTF-8 bytes: exceeds BCrypt's 72-byte limit.
 		assertPasswordRejected("é".repeat(40));
 	}
-
-	// ---- Password byte length (BCrypt's 72-byte input limit) ------------------------
 
 	@Test
 	void asciiPasswordsOfValidLengthAreAccepted() throws Exception {
@@ -197,22 +188,22 @@ class AuthIntegrationTest {
 
 	@Test
 	void unicodePasswordsWithin72BytesAreAccepted() throws Exception {
-		assertPasswordAccepted("é".repeat(36), "accented"); // 36 characters, 72 bytes
-		assertPasswordAccepted("🔒".repeat(18), "emoji"); // 18 code points, 72 bytes
-		assertPasswordAccepted("éééé", "four_chars"); // only 4 characters, but 8 bytes
+		assertPasswordAccepted("é".repeat(36), "accented");
+		assertPasswordAccepted("🔒".repeat(18), "emoji");
+		assertPasswordAccepted("éééé", "four_chars");
 	}
 
 	@Test
 	void unicodePasswordWithFewCharactersButMoreThan72BytesIsRejected() throws Exception {
-		assertPasswordRejected("é".repeat(37)); // 37 characters, 74 bytes
-		assertPasswordRejected("🔒".repeat(19)); // 19 code points, 76 bytes
-		assertPasswordRejected("a".repeat(71) + "é"); // 72 characters, 73 bytes
+		assertPasswordRejected("é".repeat(37));
+		assertPasswordRejected("🔒".repeat(19));
+		assertPasswordRejected("a".repeat(71) + "é");
 	}
 
 	@Test
 	void passwordBelow8BytesIsRejected() throws Exception {
 		assertPasswordRejected("abc1234");
-		assertPasswordRejected("ééé"); // 6 bytes
+		assertPasswordRejected("ééé");
 		assertPasswordRejected("");
 	}
 
@@ -262,8 +253,6 @@ class AuthIntegrationTest {
 		assertThat(stored.getRole()).isEqualTo(UserRole.USER);
 		assertThat(stored.getStatus()).isEqualTo(UserStatus.ACTIVE);
 	}
-
-	// ---- Login --------------------------------------------------------------------------
 
 	@Test
 	void loginWithEmailReturnsBearerToken() throws Exception {
@@ -318,7 +307,7 @@ class AuthIntegrationTest {
 	void suspendedUserCannotLogIn() throws Exception {
 		registerVed();
 		User user = this.userRepository.findByEmail("ved@example.com").orElseThrow();
-		user.setStatus(UserStatus.SUSPENDED);
+		user.suspend();
 		this.userRepository.save(user);
 
 		login("ved@example.com", PASSWORD)
@@ -326,7 +315,6 @@ class AuthIntegrationTest {
 			.andExpect(jsonPath("$.detail").value("This account is suspended."))
 			.andExpect(jsonPath("$.accessToken").doesNotExist());
 
-		// Without the correct password, suspension is not revealed.
 		login("ved@example.com", "wrong-password")
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.detail").value(INVALID_CREDENTIALS));
@@ -349,8 +337,6 @@ class AuthIntegrationTest {
 		assertThat(jwt.getIssuedAt()).isBeforeOrEqualTo(Instant.now());
 		assertThat(Duration.between(jwt.getIssuedAt(), jwt.getExpiresAt())).isEqualTo(Duration.ofMinutes(15));
 	}
-
-	// ---- Protected endpoint ------------------------------------------------------------
 
 	@Test
 	void meWithoutTokenIs401() throws Exception {
@@ -403,7 +389,6 @@ class AuthIntegrationTest {
 	@Test
 	void expiredTokenIs401() throws Exception {
 		long id = registerVed();
-		// Well beyond the 60 second clock skew tolerated by the decoder.
 		Instant issuedAt = Instant.now().minus(Duration.ofHours(2));
 		String expired = encode(this.jwtEncoder,
 				claims(id, "conflux-test", issuedAt, issuedAt.plus(Duration.ofHours(1))));
@@ -423,11 +408,8 @@ class AuthIntegrationTest {
 			.andExpect(status().isUnauthorized());
 	}
 
-	// ---- Authorities and 403 -----------------------------------------------------------
-
 	@Test
 	void roleClaimMapsToSpringSecurityAuthority() {
-		// Spring Security 7 also adds its own FACTOR_BEARER authority for bearer-token authentication.
 		assertThat(authoritiesFor("USER")).containsExactlyInAnyOrder("ROLE_USER", "FACTOR_BEARER");
 		assertThat(authoritiesFor("ADMIN")).containsExactlyInAnyOrder("ROLE_ADMIN", "FACTOR_BEARER");
 	}
@@ -443,8 +425,6 @@ class AuthIntegrationTest {
 			.andExpect(jsonPath("$.detail").value("You do not have permission to access this resource."));
 	}
 
-	// ---- Existing behaviour in the full context ----------------------------------------
-
 	@Test
 	void healthIsStillPublic() throws Exception {
 		this.mockMvc.perform(get("/api/v1/health")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"));
@@ -459,8 +439,6 @@ class AuthIntegrationTest {
 			.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
 			.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
 	}
-
-	// ---- Helpers ------------------------------------------------------------------------
 
 	private long registerVed() throws Exception {
 		String response = register("ved@example.com", "ved_123", PASSWORD, "Ved Changani")
@@ -545,10 +523,6 @@ class AuthIntegrationTest {
 			.toList();
 	}
 
-	/**
-	 * Test-only endpoint behind authentication that denies access, standing in for future
-	 * role-restricted endpoints.
-	 */
 	@RestController
 	static class TestOnlyController {
 

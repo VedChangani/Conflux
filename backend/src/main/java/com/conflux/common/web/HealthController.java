@@ -4,9 +4,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Liveness endpoint. Intentionally does not touch the database.
- */
 @RestController
 @RequestMapping(ApiPaths.API_V1)
 public class HealthController {

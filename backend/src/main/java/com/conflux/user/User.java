@@ -17,24 +17,21 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
-/**
- * A Conflux user account and its public profile.
- * <p>
- * {@code email} and {@code username} are always stored normalized (see
- * {@link #normalizeEmail(String)} and {@link #normalizeUsername(String)}), so the
- * database unique constraints make them case-insensitively unique. Callers looking a
- * user up by email or username must normalize the value first.
- */
 @Entity
 @Table(name = "users")
 public class User {
 
-	/**
-	 * Human-readable username rule, applied after trimming and lower-casing.
-	 */
 	public static final String USERNAME_RULE = "3-30 characters, only a-z, 0-9, '_' and '-'";
 
 	private static final Pattern USERNAME_PATTERN = Pattern.compile("[a-z0-9_-]{3,30}");
+
+	public static final int BIO_MAX_LENGTH = 500;
+
+	public static final int LOCATION_MAX_LENGTH = 120;
+
+	public static final int URL_MAX_LENGTH = 255;
+
+	public static final int DISPLAY_NAME_MAX_LENGTH = 100;
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,22 +46,22 @@ public class User {
 	@Column(name = "username", nullable = false, length = 50)
 	private String username;
 
-	@Column(name = "display_name", nullable = false, length = 100)
+	@Column(name = "display_name", nullable = false, length = DISPLAY_NAME_MAX_LENGTH)
 	private String displayName;
 
-	@Column(name = "bio", length = 1000)
+	@Column(name = "bio", length = BIO_MAX_LENGTH)
 	private String bio;
 
-	@Column(name = "location", length = 100)
+	@Column(name = "location", length = LOCATION_MAX_LENGTH)
 	private String location;
 
-	@Column(name = "website_url", length = 500)
+	@Column(name = "website_url", length = URL_MAX_LENGTH)
 	private String websiteUrl;
 
-	@Column(name = "github_url", length = 500)
+	@Column(name = "github_url", length = URL_MAX_LENGTH)
 	private String githubUrl;
 
-	@Column(name = "linkedin_url", length = 500)
+	@Column(name = "linkedin_url", length = URL_MAX_LENGTH)
 	private String linkedinUrl;
 
 	@Enumerated(EnumType.STRING)
@@ -81,15 +78,9 @@ public class User {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected User() {
 	}
 
-	/**
-	 * Creates a new active user with the {@link UserRole#USER} role.
-	 */
 	public User(String email, String passwordHash, String username, String displayName) {
 		setEmail(email);
 		setPasswordHash(passwordHash);
@@ -99,19 +90,10 @@ public class User {
 		this.status = UserStatus.ACTIVE;
 	}
 
-	/**
-	 * Canonical form of an email address: surrounding whitespace removed, lower-cased.
-	 */
 	public static String normalizeEmail(String email) {
 		return normalizeIdentifier(email, "email");
 	}
 
-	/**
-	 * Canonical form of a username: surrounding whitespace removed, lower-cased. The
-	 * result must match {@link #USERNAME_RULE}; anything else (including accented or
-	 * other non-ASCII letters) is rejected rather than rewritten.
-	 * @throws IllegalArgumentException if the username does not satisfy the rule
-	 */
 	public static String normalizeUsername(String username) {
 		String normalized = normalizeIdentifier(username, "username");
 		if (!USERNAME_PATTERN.matcher(normalized).matches()) {
@@ -120,9 +102,6 @@ public class User {
 		return normalized;
 	}
 
-	/**
-	 * Whether {@link #normalizeUsername(String)} would accept the given input.
-	 */
 	public static boolean isValidUsername(String username) {
 		return username != null && USERNAME_PATTERN.matcher(username.strip().toLowerCase(Locale.ROOT)).matches();
 	}
@@ -134,6 +113,10 @@ public class User {
 			throw new IllegalArgumentException(name + " must not be blank");
 		}
 		return normalized;
+	}
+
+	private static String blankToNull(String value) {
+		return (value == null || value.isBlank()) ? null : value;
 	}
 
 	@PrePersist
@@ -148,7 +131,6 @@ public class User {
 		this.updatedAt = now();
 	}
 
-	// Truncated to the precision of the DATETIME(6) columns so in-memory and stored values match.
 	private static Instant now() {
 		return Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}
@@ -194,7 +176,7 @@ public class User {
 	}
 
 	public void setBio(String bio) {
-		this.bio = bio;
+		this.bio = blankToNull(bio);
 	}
 
 	public String getLocation() {
@@ -202,7 +184,7 @@ public class User {
 	}
 
 	public void setLocation(String location) {
-		this.location = location;
+		this.location = blankToNull(location);
 	}
 
 	public String getWebsiteUrl() {
@@ -210,7 +192,7 @@ public class User {
 	}
 
 	public void setWebsiteUrl(String websiteUrl) {
-		this.websiteUrl = websiteUrl;
+		this.websiteUrl = blankToNull(websiteUrl);
 	}
 
 	public String getGithubUrl() {
@@ -218,7 +200,7 @@ public class User {
 	}
 
 	public void setGithubUrl(String githubUrl) {
-		this.githubUrl = githubUrl;
+		this.githubUrl = blankToNull(githubUrl);
 	}
 
 	public String getLinkedinUrl() {
@@ -226,7 +208,7 @@ public class User {
 	}
 
 	public void setLinkedinUrl(String linkedinUrl) {
-		this.linkedinUrl = linkedinUrl;
+		this.linkedinUrl = blankToNull(linkedinUrl);
 	}
 
 	public UserRole getRole() {
@@ -241,8 +223,18 @@ public class User {
 		return this.status;
 	}
 
-	public void setStatus(UserStatus status) {
-		this.status = Objects.requireNonNull(status, "status must not be null");
+	public void suspend() {
+		if (this.status != UserStatus.ACTIVE) {
+			throw new IllegalStateException("Only an active account can be suspended");
+		}
+		this.status = UserStatus.SUSPENDED;
+	}
+
+	public void restore() {
+		if (this.status != UserStatus.SUSPENDED) {
+			throw new IllegalStateException("Only a suspended account can be restored");
+		}
+		this.status = UserStatus.ACTIVE;
 	}
 
 	public Instant getCreatedAt() {

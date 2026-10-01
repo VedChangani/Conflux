@@ -31,7 +31,6 @@ class UserTest {
 	void normalizationIsLocaleIndependent() {
 		Locale original = Locale.getDefault();
 		try {
-			// Under a Turkish default locale, "I".toLowerCase() would be the dotless "ı".
 			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
 			assertThat(User.normalizeUsername("IVAN")).isEqualTo("ivan");
 			assertThat(User.normalizeEmail("INFO@EXAMPLE.COM")).isEqualTo("info@example.com");
@@ -69,7 +68,6 @@ class UserTest {
 		assertThat(User.normalizeUsername("a".repeat(30))).hasSize(30);
 		assertThatIllegalArgumentException().isThrownBy(() -> User.normalizeUsername("ab"));
 		assertThatIllegalArgumentException().isThrownBy(() -> User.normalizeUsername("a".repeat(31)));
-		// Length is checked after trimming.
 		assertThatIllegalArgumentException().isThrownBy(() -> User.normalizeUsername("  ab  "));
 	}
 

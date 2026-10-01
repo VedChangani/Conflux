@@ -33,10 +33,6 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-/**
- * Runs against the H2 (MySQL mode) test database with the real Flyway migrations (V1 +
- * V2) applied; the embedded-database replacement is disabled on purpose.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
@@ -61,11 +57,8 @@ class ListingRepositoryTest {
 		this.owner = this.userRepository.saveAndFlush(new User("owner@example.com", "hash", "owner", "Owner"));
 	}
 
-	// ---- Schema ------------------------------------------------------------------------
-
 	@Test
 	void v2MigrationCreatesListingsTable() {
-		// V2 specifically (later migrations exist), not merely the current version.
 		MigrationInfo v2 = migration("2");
 		assertThat(v2.getVersion().getVersion()).isEqualTo("2");
 		assertThat(v2.getScript()).isEqualTo("V2__create_listings_table.sql");
@@ -76,7 +69,6 @@ class ListingRepositoryTest {
 				"problem", "solution", "asset_type", "marketplace_mode", "category", "stage", "status", "asking_price",
 				"currency", "price_negotiable", "collaboration_details", "published_at", "created_at", "updated_at");
 
-		// H2 (MySQL mode) reports TEXT columns as CHARACTER VARYING (up to 1,000,000 characters).
 		Map<String, String> types = stringMap("SELECT column_name, data_type FROM information_schema.columns "
 				+ "WHERE table_schema = SCHEMA() AND table_name = 'listings'");
 		assertThat(types).containsEntry("title", "CHARACTER VARYING")
@@ -102,7 +94,6 @@ class ListingRepositoryTest {
 			.getSingleResult();
 		assertThat(deleteRule.toString()).isEqualToIgnoringCase("RESTRICT");
 
-		// V2 also created idx_listings_status; V3 replaces it (see the next test).
 		assertThat(indexes()).contains("idx_listings_owner_id");
 	}
 
@@ -139,7 +130,6 @@ class ListingRepositoryTest {
 
 	@Test
 	void validRawInsertSucceeds() {
-		// Control case for the NULL tests below: the same insert with all values present works.
 		assertThat(insertListingWithNull(null)).isEqualTo(1);
 	}
 
@@ -149,8 +139,6 @@ class ListingRepositoryTest {
 	void databaseRejectsNullInRequiredColumn(String column) {
 		assertThatExceptionOfType(PersistenceException.class).isThrownBy(() -> insertListingWithNull(column));
 	}
-
-	// ---- Persistence -------------------------------------------------------------------
 
 	@Test
 	void persistsAndRetrievesListing() {
@@ -187,7 +175,7 @@ class ListingRepositoryTest {
 
 	@Test
 	void longTextFieldsRoundTripWithoutTruncation() {
-		String longText = "Paragraph with unicode – résumé 🚀.\n".repeat(1500); // well above any VARCHAR limit
+		String longText = "Paragraph with unicode – résumé 🚀.\n".repeat(1500);
 		Listing listing = newListing("long-text");
 		listing.setDescription(longText);
 		listing.setProblem(longText);
@@ -236,7 +224,7 @@ class ListingRepositoryTest {
 		Listing listing = new Listing(this.owner, "Dev tool", "dev-tool", "Pitch", "Description",
 				ListingAssetType.STARTUP, ListingMarketplaceMode.COLLABORATE, ListingCategory.DEVELOPER_TOOLS,
 				ListingStage.REVENUE);
-		listing.setStatus(ListingStatus.PENDING_REVIEW);
+		ListingTestStates.moveTo(listing, ListingStatus.PUBLISHED);
 		Long id = this.listingRepository.saveAndFlush(listing).getId();
 		this.entityManager.clear();
 
@@ -244,14 +232,14 @@ class ListingRepositoryTest {
 				"SELECT asset_type, marketplace_mode, category, stage, status FROM listings WHERE id = ?1")
 			.setParameter(1, id)
 			.getSingleResult();
-		assertThat(row).containsExactly("STARTUP", "COLLABORATE", "DEVELOPER_TOOLS", "REVENUE", "PENDING_REVIEW");
+		assertThat(row).containsExactly("STARTUP", "COLLABORATE", "DEVELOPER_TOOLS", "REVENUE", "PUBLISHED");
 
 		Listing found = this.listingRepository.findById(id).orElseThrow();
 		assertThat(found.getAssetType()).isEqualTo(ListingAssetType.STARTUP);
 		assertThat(found.getMarketplaceMode()).isEqualTo(ListingMarketplaceMode.COLLABORATE);
 		assertThat(found.getCategory()).isEqualTo(ListingCategory.DEVELOPER_TOOLS);
 		assertThat(found.getStage()).isEqualTo(ListingStage.REVENUE);
-		assertThat(found.getStatus()).isEqualTo(ListingStatus.PENDING_REVIEW);
+		assertThat(found.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
 	}
 
 	@Test
@@ -277,7 +265,7 @@ class ListingRepositoryTest {
 		}
 		for (ListingStatus status : ListingStatus.values()) {
 			Listing listing = newListing("status-" + status.ordinal());
-			listing.setStatus(status);
+			ListingTestStates.moveTo(listing, status);
 			this.listingRepository.save(listing);
 			expected++;
 		}
@@ -394,8 +382,6 @@ class ListingRepositoryTest {
 		assertThat(this.userRepository.existsByUsername("owner")).isTrue();
 	}
 
-	// ---- Repository methods ------------------------------------------------------------
-
 	@Test
 	void findsAndChecksBySlug() {
 		this.listingRepository.saveAndFlush(newListing("findable"));
@@ -411,7 +397,7 @@ class ListingRepositoryTest {
 	void findsByStatusWithPaging() {
 		for (int i = 0; i < 3; i++) {
 			Listing published = newListing("published-" + i);
-			published.setStatus(ListingStatus.PUBLISHED);
+			ListingTestStates.moveTo(published, ListingStatus.PUBLISHED);
 			this.listingRepository.save(published);
 		}
 		this.listingRepository.save(newListing("draft"));
@@ -431,7 +417,7 @@ class ListingRepositoryTest {
 	@Test
 	void publicQueriesFetchTheOwnerInTheSameQuery() {
 		Listing listing = newListing("fetched-owner");
-		listing.setStatus(ListingStatus.PUBLISHED);
+		ListingTestStates.moveTo(listing, ListingStatus.PUBLISHED);
 		this.listingRepository.saveAndFlush(listing);
 		this.entityManager.clear();
 
@@ -446,6 +432,28 @@ class ListingRepositoryTest {
 		assertThat(Hibernate.isInitialized(bySlug.getOwner())).isTrue();
 		assertThat(bySlug.getOwner().getUsername()).isEqualTo("owner");
 		assertThat(this.listingRepository.findBySlugAndStatus("fetched-owner", ListingStatus.DRAFT)).isEmpty();
+	}
+
+	@Test
+	void discoveryQueryReturnsOnlyPublishedListingsWithTheirOwnerFetched() {
+		Listing published = ListingTestStates.moveTo(newListing("discover-published"), ListingStatus.PUBLISHED);
+		this.listingRepository.save(published);
+		for (ListingStatus hidden : new ListingStatus[] { ListingStatus.DRAFT, ListingStatus.ARCHIVED,
+				ListingStatus.SUSPENDED }) {
+			this.listingRepository.save(ListingTestStates.moveTo(newListing("discover-" + hidden.ordinal()), hidden));
+		}
+		this.listingRepository.flush();
+		this.entityManager.clear();
+
+		List<Listing> found = this.listingRepository
+			.findPublished("%resume%", ListingAssetType.MVP, ListingMarketplaceMode.ACQUIRE, ListingCategory.AI,
+					ListingStage.MVP, PageRequest.of(0, 10, ListingSort.NEWEST.toSort()))
+			.getContent();
+
+		assertThat(found).extracting(Listing::getSlug).containsExactly("discover-published");
+		assertThat(Hibernate.isInitialized(found.get(0).getOwner())).isTrue();
+		assertThat(this.listingRepository.findPublished(null, null, null, null, null, PageRequest.of(0, 10))
+			.getContent()).extracting(Listing::getStatus).containsOnly(ListingStatus.PUBLISHED);
 	}
 
 	@Test
@@ -465,18 +473,12 @@ class ListingRepositoryTest {
 			.containsExactly(mine);
 	}
 
-	// ---- Helpers ------------------------------------------------------------------------
-
 	private Listing newListing(String slug) {
 		return new Listing(this.owner, "AI Resume Builder", slug, "Tailored resumes in one click",
 				"A full description.\n\nWith paragraphs.", ListingAssetType.MVP, ListingMarketplaceMode.ACQUIRE,
 				ListingCategory.AI, ListingStage.MVP);
 	}
 
-	/**
-	 * Inserts a listing with raw SQL (bypassing the entity) where {@code nullColumn}, if
-	 * given, is set to SQL NULL.
-	 */
 	private int insertListingWithNull(String nullColumn) {
 		return insertListing(nullColumn != null ? Map.of(nullColumn, "NULL") : Map.of());
 	}
@@ -524,7 +526,6 @@ class ListingRepositoryTest {
 			.toList();
 	}
 
-	// Values are upper-cased: H2 with DATABASE_TO_LOWER=TRUE reports some metadata values in lower case.
 	private Map<String, String> stringMap(String sql) {
 		List<?> rows = nativeQuery(sql).getResultList();
 		return rows.stream()

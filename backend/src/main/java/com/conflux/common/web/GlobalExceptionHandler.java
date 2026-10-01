@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.conflux.ratelimit.RateLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,24 +23,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-/**
- * Global REST error handling based on RFC 9457 {@link ProblemDetail}.
- * <p>
- * Standard Spring MVC exceptions (validation failures, malformed request bodies,
- * unsupported methods, missing resources, {@code ResponseStatusException}, etc.) are
- * handled by {@link ResponseEntityExceptionHandler}. Spring Security failures are mapped
- * to 401/403; the security filter chain also routes its own failures here. Anything else
- * becomes a generic 500 response that does not reveal internal details.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-	/**
-	 * 401. Exception messages are never exposed: login failures get a fixed message that
-	 * does not reveal whether the account exists, token failures a generic one.
-	 */
 	@ExceptionHandler(AuthenticationException.class)
 	public ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException ex) {
 		String detail;
@@ -63,16 +51,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				"You do not have permission to access this resource.");
 	}
 
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException ex) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.header(HttpHeaders.RETRY_AFTER, Long.toString(ex.getRetryAfterSeconds()))
+			.body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+					"Too many requests. Please try again later."));
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ProblemDetail handleUnexpected(Exception ex) {
 		log.error("Unexpected error while processing request", ex);
 		return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 	}
 
-	/**
-	 * Adds the failing fields to the standard 400 response. Rejected values are not
-	 * echoed back, so submitted passwords never appear in responses.
-	 */
 	@Override
 	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
 			HttpHeaders headers, HttpStatusCode status, WebRequest request) {

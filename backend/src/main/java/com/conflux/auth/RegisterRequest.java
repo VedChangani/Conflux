@@ -6,9 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * Registration input. Role and status are deliberately absent: the backend decides them.
- */
 public record RegisterRequest(
 		@NotBlank @Email @Size(max = 254) String email,
 		@NotBlank @ValidUsername String username,

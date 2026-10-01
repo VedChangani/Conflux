@@ -21,21 +21,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
-/**
- * An opportunity (idea, project, MVP or startup) put on the marketplace by its owner.
- * <p>
- * Invariants enforced here: every required field is present; {@code title},
- * {@code shortPitch} and {@code slug} respect their maximum lengths; {@code slug} is
- * URL-friendly; an asking price is never negative, fits the column and always comes with
- * a three-letter currency code (and a currency never comes without a price). User
- * content is stored exactly as given: nothing is trimmed or rewritten, and slugs are not
- * generated here.
- * <p>
- * New listings start as {@link ListingStatus#DRAFT} with no {@code publishedAt}. Owner
- * lifecycle operations are explicit methods ({@link #beginOwnerEdit()},
- * {@link #submitForReview()}, {@link #archive()}); moderation (approve, reject, suspend)
- * belongs to a later batch.
- */
 @Entity
 @Table(name = "listings")
 public class Listing {
@@ -46,15 +31,12 @@ public class Listing {
 
 	public static final int SHORT_PITCH_MAX_LENGTH = 240;
 
-	// Must match DECIMAL(15, 2) in V2: at most 13 integer digits and 2 decimal places.
 	private static final int PRICE_PRECISION = 15;
 
 	private static final int PRICE_SCALE = 2;
 
-	// Lower-case letters and digits in hyphen-separated groups, e.g. "ai-resume-builder".
 	private static final Pattern SLUG_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
 
-	// ISO 4217-style alphabetic code, e.g. "USD". Not checked against the real code list.
 	private static final Pattern CURRENCY_PATTERN = Pattern.compile("[A-Z]{3}");
 
 	@Id
@@ -124,16 +106,9 @@ public class Listing {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
-	/**
-	 * For JPA only.
-	 */
 	protected Listing() {
 	}
 
-	/**
-	 * Creates a {@link ListingStatus#DRAFT} listing without a price.
-	 * @param slug URL-friendly identifier chosen by the caller; it cannot be changed later
-	 */
 	public Listing(User owner, String title, String slug, String shortPitch, String description,
 			ListingAssetType assetType, ListingMarketplaceMode marketplaceMode, ListingCategory category,
 			ListingStage stage) {
@@ -162,17 +137,10 @@ public class Listing {
 		this.updatedAt = now();
 	}
 
-	// Same approach as User: truncated to the precision of the DATETIME(6) columns.
 	private static Instant now() {
 		return Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}
 
-	/**
-	 * Sets the asking price together with its currency.
-	 * @param askingPrice non-negative amount with at most 2 decimal places and 13 integer digits
-	 * @param currency three upper-case letters, e.g. {@code USD}
-	 * @throws IllegalArgumentException if either value is missing or invalid
-	 */
 	public void setAskingPrice(BigDecimal askingPrice, String currency) {
 		Objects.requireNonNull(askingPrice, "askingPrice must not be null; use clearAskingPrice()");
 		Objects.requireNonNull(currency, "currency is required when an asking price is set");
@@ -193,67 +161,52 @@ public class Listing {
 		this.currency = currency;
 	}
 
-	/**
-	 * Removes the asking price and its currency.
-	 */
 	public void clearAskingPrice() {
 		this.askingPrice = null;
 		this.currency = null;
 	}
 
-	/**
-	 * Must be called before the owner changes any content. DRAFT and REJECTED listings
-	 * keep their status; a PUBLISHED listing goes back to PENDING_REVIEW and loses its
-	 * {@code publishedAt}, so edited public content cannot bypass moderation.
-	 * @throws ListingStateException if the listing is PENDING_REVIEW, ARCHIVED or SUSPENDED
-	 */
-	public void beginOwnerEdit() {
+	public void publish() {
+		if (this.status != ListingStatus.DRAFT) {
+			throw notAllowed("published");
+		}
+		this.status = ListingStatus.PUBLISHED;
+		this.publishedAt = now();
+	}
+
+	public void requireEditable() {
 		switch (this.status) {
-			case DRAFT, REJECTED -> {
+			case DRAFT, PUBLISHED -> {
 			}
-			case PUBLISHED -> {
-				this.status = ListingStatus.PENDING_REVIEW;
-				this.publishedAt = null;
-			}
-			case PENDING_REVIEW, ARCHIVED, SUSPENDED -> throw notAllowed("edited");
+			case ARCHIVED, SUSPENDED -> throw notAllowed("edited");
 		}
 	}
 
-	/**
-	 * DRAFT or REJECTED to PENDING_REVIEW. Does not publish; {@code publishedAt} stays null.
-	 * @throws ListingStateException for any other status
-	 */
-	public void submitForReview() {
-		switch (this.status) {
-			case DRAFT, REJECTED -> this.status = ListingStatus.PENDING_REVIEW;
-			case PENDING_REVIEW, PUBLISHED, ARCHIVED, SUSPENDED -> throw notAllowed("submitted for review");
-		}
-	}
-
-	/**
-	 * Owner archive (soft delete). {@code publishedAt} is kept as historical information.
-	 * Archiving an already archived listing does nothing.
-	 * @throws ListingStateException if the listing is SUSPENDED
-	 */
 	public void archive() {
 		switch (this.status) {
-			case DRAFT, REJECTED, PENDING_REVIEW, PUBLISHED -> this.status = ListingStatus.ARCHIVED;
+			case DRAFT, PUBLISHED -> this.status = ListingStatus.ARCHIVED;
 			case ARCHIVED -> {
 			}
 			case SUSPENDED -> throw notAllowed("archived");
 		}
 	}
 
-	private ListingStateException notAllowed(String action) {
-		return new ListingStateException("A listing with status " + this.status + " cannot be " + action + ".");
+	void suspend() {
+		if (this.status != ListingStatus.PUBLISHED) {
+			throw notAllowed("suspended");
+		}
+		this.status = ListingStatus.SUSPENDED;
 	}
 
-	/**
-	 * Direct status change, for persistence tests only. Application code must use the
-	 * explicit lifecycle methods above.
-	 */
-	void setStatus(ListingStatus status) {
-		this.status = Objects.requireNonNull(status, "status must not be null");
+	void restore() {
+		if (this.status != ListingStatus.SUSPENDED) {
+			throw notAllowed("restored");
+		}
+		this.status = ListingStatus.PUBLISHED;
+	}
+
+	private ListingStateException notAllowed(String action) {
+		return new ListingStateException("A listing with status " + this.status + " cannot be " + action + ".");
 	}
 
 	private static String requireSlug(String slug) {
@@ -266,7 +219,6 @@ public class Listing {
 		return slug;
 	}
 
-	// Counts code points, like MySQL's VARCHAR(n), rather than UTF-16 units.
 	private static String requireMaxLength(String value, int maxLength, String name) {
 		if (value.codePointCount(0, value.length()) > maxLength) {
 			throw new IllegalArgumentException(name + " must be at most " + maxLength + " characters");
