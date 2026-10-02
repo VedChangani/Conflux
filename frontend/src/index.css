@@ -73,7 +73,6 @@
 
 body {
   margin: 0;
-  min-width: 320px;
   background: var(--paper);
 }
 
@@ -508,6 +507,7 @@ mark {
 
 .auth-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 40px;
   align-items: start;
 }
@@ -614,6 +614,40 @@ mark {
 
 .auth-footer a:hover {
   color: var(--accent);
+}
+
+/* On short viewports tighten the auth layout's own vertical spacing so the
+   whole composition, including the submit button, fits without page scroll. */
+@media (max-height: 880px) {
+  .app-main:has(.auth-layout) {
+    padding-block: 16px 24px;
+  }
+
+  .auth-layout {
+    gap: 24px;
+    padding-top: 0;
+  }
+
+  .auth-card {
+    gap: 16px;
+    padding-block: 24px;
+  }
+
+  .auth-card > .eyebrow {
+    margin-bottom: -8px;
+  }
+
+  .auth-intro {
+    margin-top: -4px;
+  }
+
+  .auth-card .form {
+    gap: 16px;
+  }
+
+  .auth-footer {
+    padding-top: 16px;
+  }
 }
 
 .registration-success {
