@@ -1,87 +1,62 @@
 # Conflux
 
-### Discover. Connect. Build.
+## A marketplace for ideas, projects, and startups
 
-**Conflux** is a marketplace for **startup ideas, projects, MVPs, and early-stage opportunities**.
+Conflux is a platform where people can **discover, publish, and connect around early-stage opportunities**.
 
-Creators can publish opportunities they want to build, collaborate on, or sell. Developers, founders, designers, and entrepreneurs can discover them, connect with creators, and take them forward.
+Creators can share startup ideas, projects, MVPs, or startups they want to build, collaborate on, or sell. Other users can discover opportunities, save listings, express interest, connect with owners, and continue the conversation through messaging.
 
-> **Discover → Evaluate → Connect → Build / Acquire**
-
----
-
-## Features
-
-- **Post Opportunities** — Ideas, Projects, MVPs, and Startups
-- **Marketplace Discovery** — Search, filters, sorting, and pagination
-- **Collaborate** — Find people interested in building with you
-- **Acquire** — Discover projects and startups available for acquisition
-- **Save Listings** — Bookmark interesting opportunities
-- **Messaging** — Communicate after connecting
-- **Profiles** — Showcase skills, interests, and opportunities
-- **Trust & Safety** — Report problematic listings and users
+**Create → Publish → Discover → Connect → Build / Acquire**
 
 ---
 
-## Core Workflow
+## What you can do
+
+- Publish ideas, projects, MVPs, and startups
+- Browse opportunities with search, filters, sorting, and pagination
+- Save listings for later
+- Express interest in opportunities
+- Connect with listing owners
+- Message other users after a connection is accepted
+- Create and manage your profile
+- Report users, listings, or messages
+- Manage trust and safety through an admin moderation system
+
+---
+
+## How it works
+
+A listing is created as a draft and can be published by its owner.
 
 ```text
-Create Opportunity
-        ↓
-       Draft
-        ↓
-      Publish
-        ↓
-     Discover
-        ↓
-   View Listing
-        ↓
-   Save / Interest
-        ↓
-    Connection
-        ↓
-     Messaging
-        ↓
-  ┌────────────────┐
-  │ Collaborate    │
-  │      or        │
-  │ Acquire        │
-  └────────────────┘
+Create
+  ↓
+Draft
+  ↓
+Publish
+  ↓
+Discover
+  ↓
+View
+  ↓
+Save / Express Interest
+  ↓
+Connect
+  ↓
+Message
+  ↓
+Collaborate / Acquire
 ```
 
-Listings are published directly by their owners. Admins are used for reactive trust and safety rather than mandatory approval.
+Published listings are available in the public marketplace. Admins handle moderation reactively rather than approving listings before publication.
 
 ---
 
 ## Architecture
 
-Conflux is a **modular monolith** built around a REST API.
+![Conflux Architecture](docs/conflux-architecture.png)
 
-```text
-┌──────────────────────┐
-│     React + Vite     │
-└──────────┬───────────┘
-           │
-        REST / JSON
-           │
-           ▼
-┌──────────────────────────────┐
-│         Spring Boot          │
-│       Modular Monolith       │
-│                              │
-│  Auth       Users            │
-│  Listings   Connections      │
-│  Messaging  Saved            │
-│  Reports    Admin            │
-└──────────────┬───────────────┘
-               │
-               ▼
-        ┌─────────────┐
-        │    MySQL    │
-        └─────────────┘
-```
-
-### Backend Structure
+### Backend modules
 
 ```text
 com.conflux
@@ -114,10 +89,48 @@ com.conflux
 ### Frontend
 
 - React
+- TypeScript
 - Vite
 - React Router
 - Axios
 - Tailwind CSS
+
+### Infrastructure
+
+- Docker
+- Docker Compose
+
+---
+
+## Listings
+
+Each listing has an **asset type** and a **marketplace mode**.
+
+### Asset types
+
+```text
+IDEA
+PROJECT
+MVP
+STARTUP
+```
+
+### Marketplace modes
+
+```text
+COLLABORATE
+ACQUIRE
+```
+
+### Listing lifecycle
+
+```text
+DRAFT → PUBLISHED → ARCHIVED
+             ↓
+         SUSPENDED
+```
+
+Only published listings belonging to active users are shown in the public marketplace.
 
 ---
 
@@ -144,7 +157,7 @@ GET /listings
 GET /listings/{slug}
 ```
 
-### Listing Management
+### Listing management
 
 ```text
 POST   /listings
@@ -157,61 +170,95 @@ DELETE /listings/{id}
 
 ---
 
-## Listing Model
-
-Every opportunity has an **asset type** and a **marketplace mode**.
-
-**Asset Type**
-
-```text
-IDEA
-PROJECT
-MVP
-STARTUP
-```
-
-**Marketplace Mode**
-
-```text
-COLLABORATE
-ACQUIRE
-```
-
-A listing starts as `DRAFT` and can be published directly by its owner.
-
-```text
-DRAFT → PUBLISHED → ARCHIVED
-             ↓
-         SUSPENDED
-```
-
-Only `PUBLISHED` listings are visible in the public marketplace.
-
----
-
 ## Testing
 
-The backend includes automated tests covering authentication, authorization, ownership, listing lifecycle, validation, persistence, migrations, search, filtering, pagination, and error handling.
+The backend and frontend include automated tests covering the main application workflows, including authentication, authorization, listing management, connections, messaging, reporting, moderation, validation, pagination, and error handling.
 
 ---
 
 ## Run Locally
 
-### Backend
+### 1. Database
+
+Create a MySQL database named:
+
+```text
+conflux
+```
+
+### 2. Backend
+
+Create:
+
+```text
+backend/.env
+```
+
+from:
+
+```text
+backend/.env.example
+```
+
+and configure the MySQL and JWT values.
+
+Then run:
 
 ```bash
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-### Frontend
+The backend runs on:
+
+```text
+http://localhost:8080
+```
+
+### 3. Frontend
 
 ```bash
-cd client
+cd frontend
 npm install
 npm run dev
 ```
 
-Create `backend/.env` from `backend/.env.example` and configure MySQL and JWT settings.
+The frontend runs on:
+
+```text
+http://localhost:5173
+```
 
 ---
+
+## Docker
+
+To run the full stack with Docker Compose:
+
+```bash
+docker compose --env-file backend/.env up --build
+```
+
+This starts:
+
+- MySQL
+- Spring Boot backend
+- React frontend
+
+---
+
+## Project Structure
+
+```text
+Conflux/
+├── backend/        # Spring Boot REST API
+├── frontend/       # React application
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+## Status
+
+Conflux V1 is complete and currently focused on the core marketplace workflow: **publishing opportunities, discovering them, connecting users, and enabling collaboration or acquisition**.
