@@ -19,6 +19,17 @@ function submitRegistration(values: Record<string, string> = FORM) {
 }
 
 describe('RegisterPage', () => {
+  it('shows the complete username rules below the Username field', () => {
+    renderApp('/register')
+
+    const hint = '3–30 characters: a–z, 0–9, _ or -'
+    const username = screen.getByLabelText('Username')
+    const hintElement = screen.getByText(hint)
+
+    expect(hintElement.className).toContain('field-hint')
+    expect(username.getAttribute('aria-describedby')).toContain(hintElement.id)
+  })
+
   it('registers without logging in and directs the user to log in', async () => {
     const { requests } = mockApi({ 'POST /auth/register': () => json(ACCOUNT, 201) })
     const router = renderApp('/register')
