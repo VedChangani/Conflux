@@ -54,7 +54,7 @@ Published listings are available in the public marketplace. Admins handle modera
 
 ## Architecture
 
-![Conflux Architecture](docs/conflux-architecture.png)
+![Conflux Architecture](docs/conflux.png)
 
 ### Backend modules
 
