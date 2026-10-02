@@ -74,7 +74,7 @@ export function RegisterForm({ onRegistered }: { onRegistered: (account: Registe
           spellCheck={false}
           required
           maxLength={30}
-          hint="3–30 characters: a–z, 0–9, _ and -"
+          hint="3–30 characters: a–z, 0–9, _ or -"
           value={values.username}
           onChange={(event) => update('username', event.target.value)}
           error={fieldErrors.username}
